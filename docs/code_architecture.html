@@ -1,0 +1,1047 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ForecastOps Agent / ComboScope 代码架构</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --panel-2: #fbfcfe;
+      --ink: #1f2933;
+      --muted: #667085;
+      --line: #d8dee8;
+      --blue: #2563eb;
+      --teal: #0f766e;
+      --green: #15803d;
+      --amber: #b45309;
+      --red: #b42318;
+      --violet: #6d28d9;
+      --shadow: 0 14px 34px rgba(31, 41, 51, 0.08);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.55;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 24px 20px;
+      border-right: 1px solid var(--line);
+      background: #eef3f7;
+      overflow: auto;
+    }
+
+    .brand {
+      margin-bottom: 28px;
+    }
+
+    .brand .name {
+      font-size: 18px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .brand .sub {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    nav a {
+      padding: 9px 10px;
+      border-radius: 6px;
+      color: #344054;
+      font-size: 14px;
+    }
+
+    nav a:hover {
+      background: #ffffff;
+      color: var(--blue);
+    }
+
+    main {
+      padding: 32px;
+    }
+
+    .hero {
+      padding: 34px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, #ffffff 0%, #eef7f4 55%, #f7f2ea 100%);
+      box-shadow: var(--shadow);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 50px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 980px;
+      margin: 16px 0 0;
+      color: #475467;
+      font-size: 17px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .meta {
+      padding: 14px;
+      border: 1px solid rgba(37, 99, 235, 0.16);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .meta b {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 650;
+    }
+
+    .meta span {
+      display: block;
+      margin-top: 6px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    section {
+      margin-top: 28px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 14px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-body {
+      padding: 20px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(130px, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .flow-card {
+      position: relative;
+      min-height: 138px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--blue);
+      border-radius: var(--radius);
+      background: var(--panel-2);
+    }
+
+    .flow-card:nth-child(2) { border-top-color: var(--teal); }
+    .flow-card:nth-child(3) { border-top-color: var(--green); }
+    .flow-card:nth-child(4) { border-top-color: var(--amber); }
+    .flow-card:nth-child(5) { border-top-color: var(--violet); }
+    .flow-card:nth-child(6) { border-top-color: var(--red); }
+
+    .flow-card:not(:last-child)::after {
+      content: ">";
+      position: absolute;
+      right: -11px;
+      top: 48%;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      text-align: center;
+      line-height: 18px;
+      font-weight: 750;
+      z-index: 1;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+
+    .flow-card h3,
+    .module h3,
+    .lane h3,
+    .artifact h3 {
+      margin: 6px 0 8px;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    .flow-card p,
+    .module p,
+    .lane p,
+    .artifact p {
+      margin: 0;
+      color: #475467;
+      font-size: 14px;
+    }
+
+    .architecture {
+      display: grid;
+      gap: 14px;
+    }
+
+    .lane {
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr);
+      gap: 16px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel-2);
+    }
+
+    .lane-label {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px;
+      border-radius: 6px;
+      background: #ffffff;
+      border-left: 4px solid var(--blue);
+    }
+
+    .lane:nth-child(2) .lane-label { border-left-color: var(--teal); }
+    .lane:nth-child(3) .lane-label { border-left-color: var(--green); }
+    .lane:nth-child(4) .lane-label { border-left-color: var(--amber); }
+    .lane:nth-child(5) .lane-label { border-left-color: var(--violet); }
+
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .module {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: #eef2f6;
+      color: #243b53;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+    }
+
+    pre {
+      margin: 0;
+      padding: 18px;
+      overflow: auto;
+      color: #dbe7ff;
+      background: #172033;
+      border-radius: var(--radius);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 16px;
+    }
+
+    .table-wrap {
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      color: #344054;
+      background: #f3f6fa;
+      font-weight: 750;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid #d0d5dd;
+      background: #ffffff;
+      color: #344054;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .tag.blue { border-color: #bfdbfe; color: #1d4ed8; background: #eff6ff; }
+    .tag.green { border-color: #bbf7d0; color: #166534; background: #f0fdf4; }
+    .tag.amber { border-color: #fde68a; color: #92400e; background: #fffbeb; }
+    .tag.red { border-color: #fecaca; color: #991b1b; background: #fef2f2; }
+
+    .artifact-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .artifact {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    .artifact ul,
+    .guardrails ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: #475467;
+      font-size: 14px;
+    }
+
+    .guardrails {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .guardrail {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--red);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .guardrail:nth-child(2) { border-left-color: var(--amber); }
+    .guardrail:nth-child(3) { border-left-color: var(--teal); }
+    .guardrail:nth-child(4) { border-left-color: var(--blue); }
+
+    .search {
+      width: min(420px, 100%);
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--ink);
+      background: #ffffff;
+      font-size: 14px;
+    }
+
+    .footer {
+      margin: 34px 0 6px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 1180px) {
+      .flow,
+      .module-grid,
+      .artifact-grid,
+      .meta-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        position: static;
+        height: auto;
+      }
+
+      nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      main {
+        padding: 18px;
+      }
+
+      .hero {
+        padding: 24px;
+      }
+
+      .flow,
+      .module-grid,
+      .artifact-grid,
+      .meta-grid,
+      .guardrails {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-card:not(:last-child)::after {
+        display: none;
+      }
+
+      .lane {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <div class="brand">
+        <div class="name">ComboScope 架构图</div>
+        <div class="sub">ForecastOps Agent v0.2 代码结构与运行链路</div>
+      </div>
+      <nav aria-label="页面导航">
+        <a href="#overview">01 总览</a>
+        <a href="#flow">02 主流程</a>
+        <a href="#layers">03 代码分层</a>
+        <a href="#graph">04 LangGraph</a>
+        <a href="#modules">05 关键模块</a>
+        <a href="#skills">06 Skills</a>
+        <a href="#artifacts">07 运行产物</a>
+        <a href="#guardrails">08 安全边界</a>
+        <a href="#tree">09 目录树</a>
+      </nav>
+    </aside>
+
+    <main>
+      <header id="overview" class="hero">
+        <h1>ForecastOps Agent / ComboScope 代码架构</h1>
+        <p class="lead">
+          这个页面用于快速看清项目代码架构：入口在哪里，Agent 如何协作，核心层和 skills 如何分工，
+          LangGraph 如何编排，以及一次 trial 会落哪些证据产物。
+        </p>
+        <div class="meta-grid">
+          <div class="meta"><b>项目定位</b><span>通用预测实验诊断与验证</span></div>
+          <div class="meta"><b>包名</b><span><code>comboscope</code></span></div>
+          <div class="meta"><b>主指标</b><span>WAPE</span></div>
+          <div class="meta"><b>运行形态</b><span>单轮 trial / 多轮 loop</span></div>
+        </div>
+      </header>
+
+      <section id="flow">
+        <div class="section-title">
+          <h2>主流程</h2>
+          <span class="hint">从已有预测实验到 keep/rollback 决策</span>
+        </div>
+        <div class="panel">
+          <div class="panel-body">
+            <div class="flow">
+              <div class="flow-card">
+                <div class="eyebrow">Input</div>
+                <h3>已有预测实验</h3>
+                <p>读取预测结果、真实值、训练入口、日志、配置和历史产物。</p>
+              </div>
+              <div class="flow-card">
+                <div class="eyebrow">Skills</div>
+                <h3>扫描与标准化</h3>
+                <p>生成 artifact contract，标准化 prediction 与 actual。</p>
+              </div>
+              <div class="flow-card">
+                <div class="eyebrow">Agent1</div>
+                <h3>评测与诊断</h3>
+                <p>计算指标、拆解场景、定位 badcase，形成问题上下文。</p>
+              </div>
+              <div class="flow-card">
+                <div class="eyebrow">Agent1</div>
+                <h3>实验计划</h3>
+                <p>基于证据生成特征假设、候选实验和 experiment_plan。</p>
+              </div>
+              <div class="flow-card">
+                <div class="eyebrow">Agent2</div>
+                <h3>隔离执行</h3>
+                <p>复制训练入口到 trial 目录，只修改副本并运行训练评测。</p>
+              </div>
+              <div class="flow-card">
+                <div class="eyebrow">Decision</div>
+                <h3>对比与报告</h3>
+                <p>对比新旧 WAPE/Bias，决定 keep 或 rollback，输出最终报告。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="layers">
+        <div class="section-title">
+          <h2>代码分层</h2>
+          <span class="hint">每一层只做自己的事</span>
+        </div>
+        <div class="panel">
+          <div class="panel-body architecture">
+            <div class="lane">
+              <div class="lane-label">
+                <h3>CLI 入口</h3>
+                <p>用户命令进入系统。</p>
+              </div>
+              <div class="module-grid">
+                <div class="module">
+                  <h3><code>main.py</code></h3>
+                  <p>单轮实验入口。解析 ask、experiment、provider、model、output 后调用 graph。</p>
+                </div>
+                <div class="module">
+                  <h3><code>loop.py</code></h3>
+                  <p>多轮 trial 外层循环。管理 trial 目录、历史结果、最佳 trial 选择。</p>
+                </div>
+                <div class="module">
+                  <h3><code>program.md</code></h3>
+                  <p>项目规则与边界的权威说明，约束评测、修改范围和 rollback 规则。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="lane">
+              <div class="lane-label">
+                <h3>编排层</h3>
+                <p>把阶段串成可追踪流程。</p>
+              </div>
+              <div class="module-grid">
+                <div class="module">
+                  <h3><code>orchestrators/langgraph_flow.py</code></h3>
+                  <p>主状态图。定义 evaluate、plan、run、review、report 等节点。</p>
+                </div>
+                <div class="module">
+                  <h3><code>orchestrators/sequential_flow.py</code></h3>
+                  <p>串行入口，目前复用单轮 graph，保留 CLI 兼容与扩展点。</p>
+                </div>
+                <div class="module">
+                  <h3><code>ComboScopeState</code></h3>
+                  <p>节点间状态，只传 artifact path、小对象和状态标记。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="lane">
+              <div class="lane-label">
+                <h3>Agent 层</h3>
+                <p>LLM 负责研究、计划与复审。</p>
+              </div>
+              <div class="module-grid">
+                <div class="module">
+                  <h3><code>evaluation_hypothesis_agent.py</code></h3>
+                  <p>Agent1：生成诊断、特征假设、候选实验和实验计划。</p>
+                </div>
+                <div class="module">
+                  <h3><code>report_agent.py</code></h3>
+                  <p>Agent2 报告与复审：解释实验效果、输出最终结论。</p>
+                </div>
+                <div class="module">
+                  <h3><code>llm_decision_agent.py</code></h3>
+                  <p>多轮模式中选择最佳 trial，写出 best_trial_review。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="lane">
+              <div class="lane-label">
+                <h3>Core 层</h3>
+                <p>只处理实验执行侧逻辑。</p>
+              </div>
+              <div class="module-grid">
+                <div class="module">
+                  <h3><code>experiment_plan.py</code></h3>
+                  <p>读取计划并应用受控修改，保护 toy fixture 可编辑边界。</p>
+                </div>
+                <div class="module">
+                  <h3><code>real_experiment_runner.py</code></h3>
+                  <p>真实实验训练 wrapper，复制入口和依赖到 trial 副本。</p>
+                </div>
+                <div class="module">
+                  <h3><code>compare.py</code></h3>
+                  <p>指标对比与 keep/rollback 决策：WAPE、Bias、训练和评测状态。</p>
+                </div>
+                <div class="module">
+                  <h3><code>reports.py</code></h3>
+                  <p>构建最终报告上下文，写出 final_report。</p>
+                </div>
+                <div class="module">
+                  <h3><code>rollback.py</code></h3>
+                  <p>处理 rollback 结果，保证失败方案不污染原实验源码。</p>
+                </div>
+                <div class="module">
+                  <h3><code>schemas.py</code></h3>
+                  <p>Pydantic schema，校验计划、运行状态和报告结构。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="lane">
+              <div class="lane-label">
+                <h3>Runtime 层</h3>
+                <p>技能、LLM、产物和审计基础设施。</p>
+              </div>
+              <div class="module-grid">
+                <div class="module">
+                  <h3><code>skill_runner.py</code></h3>
+                  <p>调用本地 skills/scripts，完成扫描、指标、场景和 badcase 任务。</p>
+                </div>
+                <div class="module">
+                  <h3><code>llm_client.py</code></h3>
+                  <p>统一 LLM 客户端，支持 provider 推断、responses/chat、重试和 token 统计。</p>
+                </div>
+                <div class="module">
+                  <h3><code>artifact_contract.py</code></h3>
+                  <p>把原始 prediction/actual 转成标准化输入契约。</p>
+                </div>
+                <div class="module">
+                  <h3><code>agent_run_recorder.py</code></h3>
+                  <p>记录 agent 状态、时间线、错误报告和 LLM 调用。</p>
+                </div>
+                <div class="module">
+                  <h3><code>trial_archive.py</code></h3>
+                  <p>把单轮 trial 产物整理成分组目录和 archive 证据包。</p>
+                </div>
+                <div class="module">
+                  <h3><code>cli_summary.py</code></h3>
+                  <p>命令行输出摘要：decision、指标变化、报告路径和 token。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="graph">
+        <div class="section-title">
+          <h2>LangGraph 编排</h2>
+          <span class="hint">主图与评测子图</span>
+        </div>
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-body">
+              <pre>START
+  |
+  v
+ForecastEvaluationSubgraph
+  |
+  v
+GenerateExperimentPlan
+  |
+  v
+RunExperiment
+  |
+  v
+ReviewResult
+  |
+  v
+WriteFinalReport
+  |
+  v
+END</pre>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-body">
+              <h3>状态传递原则</h3>
+              <p>
+                <code>ComboScopeState</code> 中只保存路径、小型 dict 和状态标记。
+                大 CSV、DataFrame、完整 prompt 不进入 state，避免图状态膨胀和不可追踪。
+              </p>
+              <div class="tag-row">
+                <span class="tag blue">artifact path</span>
+                <span class="tag blue">status flag</span>
+                <span class="tag green">small dict</span>
+                <span class="tag red">no DataFrame</span>
+                <span class="tag red">no full prompt</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="modules">
+        <div class="section-title">
+          <h2>关键模块索引</h2>
+          <input class="search" id="moduleSearch" type="search" placeholder="搜索文件、职责或关键词">
+        </div>
+        <div class="panel">
+          <div class="table-wrap">
+            <table id="moduleTable">
+              <thead>
+                <tr>
+                  <th>文件</th>
+                  <th>所属层</th>
+                  <th>职责</th>
+                  <th>主要输出/影响</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>main.py</code></td>
+                  <td>CLI</td>
+                  <td>单轮运行入口，解析参数并构造 request。</td>
+                  <td><code>runs/&lt;trial&gt;/</code></td>
+                </tr>
+                <tr>
+                  <td><code>loop.py</code></td>
+                  <td>CLI</td>
+                  <td>多轮 trial 外层循环，汇总历史并选择最佳 trial。</td>
+                  <td><code>run_history.csv</code>, <code>best_trial_review.md</code></td>
+                </tr>
+                <tr>
+                  <td><code>comboscope/orchestrators/langgraph_flow.py</code></td>
+                  <td>编排</td>
+                  <td>定义主图、节点函数、artifact 路径和各阶段串联。</td>
+                  <td>完整 trial 流程</td>
+                </tr>
+                <tr>
+                  <td><code>comboscope/agents/evaluation_hypothesis_agent.py</code></td>
+                  <td>Agent1</td>
+                  <td>基于证据生成诊断、候选实验和计划。</td>
+                  <td><code>feature_hypothesis.yaml</code>, <code>experiment_plan.yaml</code></td>
+                </tr>
+                <tr>
+                  <td><code>comboscope/core/real_experiment_runner.py</code></td>
+                  <td>Core</td>
+                  <td>复制真实入口和 Python 依赖，生成 trial wrapper 并运行。</td>
+                  <td><code>agent2/code/train.py</code>, <code>run_status.json</code></td>
+                </tr>
+                <tr>
+                  <td><code>comboscope/core/compare.py</code></td>
+                  <td>Core</td>
+                  <td>对比新旧指标，执行确定性 keep/rollback 规则。</td>
+                  <td><code>metric_comparison.json</code>, <code>review_result.json</code></td>
+                </tr>
+                <tr>
+                  <td><code>comboscope/runtime/skill_runner.py</code></td>
+                  <td>Runtime</td>
+                  <td>封装 forecast skills 的脚本调用。</td>
+                  <td>扫描、指标、场景、badcase 产物</td>
+                </tr>
+                <tr>
+                  <td><code>comboscope/runtime/llm_client.py</code></td>
+                  <td>Runtime</td>
+                  <td>统一 LLM 请求，处理 provider、API 模式、重试和用量。</td>
+                  <td><code>llm_calls.jsonl</code>, <code>token_usage.json</code></td>
+                </tr>
+                <tr>
+                  <td><code>comboscope/runtime/trial_archive.py</code></td>
+                  <td>Runtime</td>
+                  <td>压实 trial 目录并生成 archive 分组证据包。</td>
+                  <td><code>archive/archive_manifest.json</code></td>
+                </tr>
+                <tr>
+                  <td><code>skills/*/scripts/*.py</code></td>
+                  <td>Skills</td>
+                  <td>评测、扫描、日志解析、场景拆解和 badcase 挖掘。</td>
+                  <td><code>metrics.json</code>, <code>badcases.csv</code>, <code>forecast_report.md</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="skills">
+        <div class="section-title">
+          <h2>Skills 能力分布</h2>
+          <span class="hint">评测能力来自 skills，不在 core 重复实现</span>
+        </div>
+        <div class="artifact-grid">
+          <div class="artifact">
+            <h3>发现与分析</h3>
+            <ul>
+              <li><code>forecast-experiment-scanner</code>：扫描 CSV、代码、日志、配置。</li>
+              <li><code>forecast-code-log-analyzer</code>：解析代码结构、argparse、训练日志。</li>
+              <li><code>forecast-task-planner</code>：解析用户 ask 和 skill 路由。</li>
+            </ul>
+          </div>
+          <div class="artifact">
+            <h3>评测与 badcase</h3>
+            <ul>
+              <li><code>forecast-evaluation-analyzer</code>：WAPE、Bias、MAE、RMSE、场景指标。</li>
+              <li><code>forecast-badcase-locator</code>：最大误差、低估、高估和异常样本。</li>
+            </ul>
+          </div>
+          <div class="artifact">
+            <h3>建议与报告</h3>
+            <ul>
+              <li><code>forecast-optimization-advisor</code>：基于证据生成优化建议。</li>
+              <li><code>forecast-report-writer</code>：写出评测诊断报告。</li>
+              <li><code>forecast-trial-codegen</code>：trial 代码生成约束参考。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="artifacts">
+        <div class="section-title">
+          <h2>运行产物</h2>
+          <span class="hint">一次 trial 的主要输出</span>
+        </div>
+        <div class="artifact-grid">
+          <div class="artifact">
+            <h3><code>agent1/</code></h3>
+            <p>研究和计划证据。</p>
+            <ul>
+              <li><code>analysis_report.md</code></li>
+              <li><code>badcase_diagnosis.md</code></li>
+              <li><code>feature_hypothesis.yaml</code></li>
+              <li><code>candidate_experiments.yaml</code></li>
+              <li><code>experiment_plan.yaml</code></li>
+            </ul>
+          </div>
+          <div class="artifact">
+            <h3><code>agent2/</code></h3>
+            <p>执行和复审证据。</p>
+            <ul>
+              <li><code>agent2_execution_plan.yaml</code></li>
+              <li><code>code/train.py</code></li>
+              <li><code>run_status.json</code></li>
+              <li><code>review_result.json</code></li>
+              <li><code>experiment_review.md</code></li>
+            </ul>
+          </div>
+          <div class="artifact">
+            <h3><code>evaluation/</code></h3>
+            <p>指标和 badcase 证据。</p>
+            <ul>
+              <li><code>metrics.json</code></li>
+              <li><code>new_metrics.json</code></li>
+              <li><code>metric_comparison.json</code></li>
+              <li><code>scene_metrics.csv</code></li>
+              <li><code>badcases.csv</code></li>
+            </ul>
+          </div>
+          <div class="artifact">
+            <h3><code>reports/</code></h3>
+            <p>人可读报告。</p>
+            <ul>
+              <li><code>forecast_report.md</code></li>
+              <li><code>optimization_suggestions.md</code></li>
+              <li><code>final_report_context.json</code></li>
+              <li><code>final_report.md</code></li>
+            </ul>
+          </div>
+          <div class="artifact">
+            <h3><code>audit/</code></h3>
+            <p>审计和排错证据。</p>
+            <ul>
+              <li><code>agent_status.json</code></li>
+              <li><code>agent_timeline.jsonl</code></li>
+              <li><code>llm_calls.jsonl</code></li>
+              <li><code>token_usage.json</code></li>
+              <li><code>trace.jsonl</code></li>
+            </ul>
+          </div>
+          <div class="artifact">
+            <h3><code>archive/</code></h3>
+            <p>可迁移证据包。</p>
+            <ul>
+              <li><code>archive_manifest.json</code></li>
+              <li><code>inputs/</code>, <code>outputs/</code></li>
+              <li><code>agent1/</code>, <code>agent2/</code></li>
+              <li><code>evaluation/</code>, <code>reports/</code>, <code>audit/</code></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="guardrails">
+        <div class="section-title">
+          <h2>安全边界</h2>
+          <span class="hint">项目最重要的约束</span>
+        </div>
+        <div class="guardrails">
+          <div class="guardrail">
+            <h3>通用性边界</h3>
+            <ul>
+              <li>Agent 和 skills 不写死业务线、套餐、单品或固定模型。</li>
+              <li>无法识别的模型家族和目标函数标记为 <code>unknown</code>。</li>
+            </ul>
+          </div>
+          <div class="guardrail">
+            <h3>评测边界</h3>
+            <ul>
+              <li>评测能力来自 <code>skills/</code>。</li>
+              <li><code>core/</code> 不新增重复的 forecast 评测工具。</li>
+            </ul>
+          </div>
+          <div class="guardrail">
+            <h3>编辑边界</h3>
+            <ul>
+              <li>真实实验只在 <code>runs/&lt;trial&gt;/code/</code> 副本中修改。</li>
+              <li>不修改 actual、metric definitions 和 data split logic。</li>
+            </ul>
+          </div>
+          <div class="guardrail">
+            <h3>决策边界</h3>
+            <ul>
+              <li>WAPE 至少改善 <code>0.005</code>。</li>
+              <li><code>abs(Bias)</code> 恶化不超过 <code>0.02</code>。</li>
+              <li>训练和评测必须成功，否则 rollback。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="tree">
+        <div class="section-title">
+          <h2>目录树速览</h2>
+          <span class="hint">核心文件与职责位置</span>
+        </div>
+        <div class="panel">
+          <div class="panel-body">
+            <pre>.
+├── main.py                         # 单轮实验 CLI
+├── loop.py                         # 多轮 trial loop
+├── program.md                      # 项目规则和安全边界
+├── comboscope/
+│   ├── agents/
+│   │   ├── evaluation_hypothesis_agent.py
+│   │   ├── llm_decision_agent.py
+│   │   └── report_agent.py
+│   ├── core/
+│   │   ├── compare.py
+│   │   ├── experiment_plan.py
+│   │   ├── experiment_runner.py
+│   │   ├── real_experiment_runner.py
+│   │   ├── reports.py
+│   │   ├── rollback.py
+│   │   ├── schemas.py
+│   │   └── train_policy.py
+│   ├── orchestrators/
+│   │   ├── langgraph_flow.py
+│   │   └── sequential_flow.py
+│   └── runtime/
+│       ├── agent_run_recorder.py
+│       ├── artifact_adapter.py
+│       ├── artifact_contract.py
+│       ├── ask_paths.py
+│       ├── cli_summary.py
+│       ├── llm_client.py
+│       ├── skill_runner.py
+│       ├── skills_manager.py
+│       ├── trace_writer.py
+│       ├── trial_archive.py
+│       └── yaml_utils.py
+├── skills/
+│   ├── forecast-experiment-scanner/
+│   ├── forecast-code-log-analyzer/
+│   ├── forecast-evaluation-analyzer/
+│   ├── forecast-badcase-locator/
+│   ├── forecast-optimization-advisor/
+│   ├── forecast-optimization-case-reference/
+│   ├── forecast-report-writer/
+│   ├── forecast-task-planner/
+│   ├── forecast-trial-codegen/
+│   └── using-forecast/
+└── tests/</pre>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer">
+        Generated for ForecastOps Agent / ComboScope. Open this file directly in a browser.
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const search = document.getElementById("moduleSearch");
+    const rows = Array.from(document.querySelectorAll("#moduleTable tbody tr"));
+
+    search.addEventListener("input", () => {
+      const query = search.value.trim().toLowerCase();
+      rows.forEach((row) => {
+        row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+      });
+    });
+  </script>
+</body>
+</html>

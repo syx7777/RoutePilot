@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: comboscope
+Version: 0.2.0
+Summary: Combo sales forecast diagnosis and experiment validation agents.
+Requires-Python: >=3.11
+Requires-Dist: langchain>=1.3.7
+Requires-Dist: langchain-openai>=1.3.0
+Requires-Dist: langgraph
+Requires-Dist: numpy
+Requires-Dist: pandas
+Requires-Dist: pydantic
+Requires-Dist: python-dotenv>=1.2.2
+Requires-Dist: pyyaml
+Requires-Dist: requests
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"

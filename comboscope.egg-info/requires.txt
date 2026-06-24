@@ -1,0 +1,12 @@
+langchain>=1.3.7
+langchain-openai>=1.3.0
+langgraph
+numpy
+pandas
+pydantic
+python-dotenv>=1.2.2
+pyyaml
+requests
+
+[dev]
+pytest
