@@ -101,3 +101,25 @@ def test_snapshot_ignores_protected_files(tmp_path: Path) -> None:
     manifest = _build_project(tmp_path)
     adapter = CommandProjectAdapter(manifest, tmp_path)
     assert "data/test.csv" not in adapter.snapshot().files
+
+
+def test_resolve_command_uses_project_venv_for_bare_python(tmp_path: Path) -> None:
+    manifest = _build_project(tmp_path)
+    manifest.run.command = ["python", "src/train.py"]
+    scripts = tmp_path / ".venv" / "Scripts"
+    scripts.mkdir(parents=True)
+    executable = scripts / "python.exe"
+    executable.write_text("", encoding="utf-8")
+
+    adapter = CommandProjectAdapter(manifest, tmp_path)
+    resolved = adapter._resolve_command(list(manifest.run.command))
+
+    assert resolved[0] == executable.as_posix()
+    assert resolved[1:] == ["src/train.py"]
+
+
+def test_resolve_command_keeps_explicit_interpreter_path(tmp_path: Path) -> None:
+    manifest = _build_project(tmp_path)
+    adapter = CommandProjectAdapter(manifest, tmp_path)
+    resolved = adapter._resolve_command(list(manifest.run.command))
+    assert resolved[0] == sys.executable

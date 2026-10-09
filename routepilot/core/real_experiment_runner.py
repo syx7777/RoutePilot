@@ -16,6 +16,7 @@ from typing import Any
 import yaml
 
 from routepilot.runtime.artifact_contract import standardize_from_contract, write_artifact_contract
+from routepilot.runtime.interpreter import project_interpreter
 from routepilot.runtime.yaml_utils import append_yaml_output_contract, clean_llm_yaml_text, safe_load_yaml_mapping, strip_code_fence
 
 
@@ -1840,8 +1841,7 @@ def _trial_command(
     normalizations_out: list[dict[str, Any]] | None = None,
 ) -> list[str]:
     experiment = Path(experiment_dir).resolve()
-    python_bin = experiment / ".venv" / "bin" / "python"
-    python_executable = python_bin.as_posix() if python_bin.exists() else sys.executable
+    python_executable = project_interpreter(experiment)
     raw_command = execution_plan.get("train_command")
     if not isinstance(raw_command, list) or not raw_command:
         raise ValueError("Agent2 execution_plan.train_command must be a non-empty list")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from routepilot.adapter.base import Discovery, ProjectAdapter, RunResult, Snapshot
 from routepilot.adapter.command import CommandProjectAdapter, build_adapter
+from routepilot.adapter.discovery import ManifestDraft, draft_manifest
 from routepilot.adapter.manifest import (
     ArtifactsSpec,
     BudgetSpec,
@@ -31,6 +32,7 @@ __all__ = [
     "CommandProjectAdapter",
     "Discovery",
     "GuardMetricSpec",
+    "ManifestDraft",
     "MetricSpec",
     "MetricsSpec",
     "ProjectAdapter",
@@ -43,6 +45,7 @@ __all__ = [
     "ValidationReport",
     "build_adapter",
     "classify_path",
+    "draft_manifest",
     "is_editable",
     "load_manifest",
     "matches_glob",

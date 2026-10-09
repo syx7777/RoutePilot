@@ -12,6 +12,7 @@ from pathlib import Path
 
 from routepilot.adapter.base import Discovery, ProjectAdapter, RunResult
 from routepilot.adapter.manifest import ProjectManifest, validate_manifest
+from routepilot.runtime.interpreter import project_interpreter, resolve_interpreter_token
 
 _LOG_TAIL_LIMIT = 4000
 
@@ -36,7 +37,7 @@ class CommandProjectAdapter(ProjectAdapter):
     def run(self, *, env: dict[str, str] | None = None) -> RunResult:
         run_spec = self.manifest.run
         cwd = (self.project_root / run_spec.cwd).resolve()
-        command = list(run_spec.command)
+        command = self._resolve_command(run_spec.command)
         process_env = {**os.environ, **run_spec.env, **(env or {})}
         self.log_dir.mkdir(parents=True, exist_ok=True)
         stdout_path = self.log_dir / "run.stdout.log"
@@ -84,6 +85,14 @@ class CommandProjectAdapter(ProjectAdapter):
             actual_path=self._resolve_artifact(self.manifest.artifacts.actual),
             error="" if success else self._tail(completed.stderr),
         )
+
+    def _resolve_command(self, command: list[str]) -> list[str]:
+        """把裸的 `python` 记号替换为项目自己的解释器，显式路径则保持原样。"""
+        resolved = [str(item) for item in command]
+        if not resolved:
+            return resolved
+        resolved[0] = resolve_interpreter_token(resolved[0], self.project_root)
+        return resolved
 
     def _resolve_artifact(self, relative: str) -> str | None:
         path = (self.project_root / relative).resolve()
