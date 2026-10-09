@@ -4,7 +4,8 @@ import re
 from pathlib import Path
 
 
-PATH_PATTERN = re.compile(r"(?P<path>(?:/|~)[^\s，。；;、]+)")
+# 支持 POSIX 绝对路径（/...）、home 路径（~/...）与 Windows 盘符路径（C:/... 或 C:\...）。
+PATH_PATTERN = re.compile(r"(?P<path>(?:[A-Za-z]:[\\/]|/|~)[^\s，。；;、]+)")
 
 
 def extract_existing_dirs_from_ask(ask: str) -> list[Path]:
