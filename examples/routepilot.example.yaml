@@ -1,0 +1,55 @@
+# RoutePilot 接入协议示例：一个典型的需求预测项目
+#
+# 用法：
+#   routepilot validate --manifest examples/routepilot.example.yaml
+#
+# 约定：
+#   - editable 是 Agent 唯一被允许修改的面（白名单）
+#   - protected 优先级高于 editable，命中即拒绝修改
+#   - run.command 是 argv 列表，不是 shell 字符串
+
+project:
+  name: m5-demand-forecast
+  root: .
+  entrypoint: src/train.py
+
+run:
+  command: ["python", "src/train.py", "--config", "configs/base.yaml"]
+  cwd: .
+  timeout_sec: 1800
+  outputs: outputs/
+
+artifacts:
+  prediction: outputs/pred.csv
+  actual: data/test.csv
+  columns:
+    prediction: yhat
+    actual: y
+    date: ds
+    id: [item_id]
+  split:
+    column: split
+    value: test
+
+metrics:
+  primary:
+    name: wape
+    direction: minimize
+    min_delta: 0.005
+  guards:
+    - name: bias
+      max_regression: 0.02
+
+editable:
+  - src/features.py
+  - configs/*.yaml
+
+protected:
+  - data/**
+  - src/split.py
+  - src/metrics.py
+
+budget:
+  max_trials: 3
+  max_usd: 5.0
+  latency_p95_ms: 60000

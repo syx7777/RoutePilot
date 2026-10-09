@@ -15,6 +15,9 @@ dependencies = [
   "requests",
 ]
 
+[project.scripts]
+routepilot = "routepilot.cli:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest",
