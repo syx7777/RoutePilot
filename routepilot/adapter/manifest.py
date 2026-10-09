@@ -218,6 +218,15 @@ def validate_manifest(manifest: ProjectManifest, project_root: str | Path) -> Va
         if not (root / rel).exists():
             warnings.append(f"{label} not found yet (expected after run): {rel}")
 
+    # 对齐键在"接入前"就是可判定的，必须硬拦：否则会一路放行到 run 的 baseline
+    # 阶段，由 metrics.align_predictions 抛出"至少需要 id 或 date 之一"——错误信息
+    # 指向的现象与真正的原因（产物/列选错）往往相距很远，排查成本被放大。
+    columns = manifest.artifacts.columns
+    if not columns.id and not columns.date:
+        errors.append(
+            "artifacts.columns 至少需要 id 或 date 之一：否则无法把预测与真实值按行对齐"
+        )
+
     executable = _resolve_executable(manifest.run.command[0])
     if executable is None:
         warnings.append(

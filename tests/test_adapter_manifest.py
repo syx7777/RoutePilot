@@ -115,3 +115,40 @@ def test_validate_manifest_accepts_project_and_warns_on_missing_artifacts(tmp_pa
     report = validate_manifest(manifest, tmp_path)
     assert report.ok is True
     assert any("artifacts.prediction" in warning for warning in report.warnings)
+
+
+def test_validate_manifest_rejects_missing_alignment_key(tmp_path: Path) -> None:
+    """id 与 date 同时为空时必须硬拦，不能放行到 run 阶段才炸。"""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "train.py").write_text("print('ok')\n", encoding="utf-8")
+    manifest = ProjectManifest.model_validate(
+        _manifest_dict(
+            artifacts={
+                "prediction": "outputs/pred.csv",
+                "actual": "data/test.csv",
+                "columns": {"prediction": "yhat", "actual": "y", "date": None, "id": []},
+            }
+        )
+    )
+
+    report = validate_manifest(manifest, tmp_path)
+    assert report.ok is False
+    assert any("id 或 date" in error for error in report.errors)
+
+
+def test_validate_manifest_accepts_id_only_alignment_key(tmp_path: Path) -> None:
+    """宽表场景：没有 date，只有 id 也应放行。"""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "train.py").write_text("print('ok')\n", encoding="utf-8")
+    manifest = ProjectManifest.model_validate(
+        _manifest_dict(
+            artifacts={
+                "prediction": "outputs/pred.csv",
+                "actual": "data/test.csv",
+                "columns": {"prediction": "yhat", "actual": "y", "date": None, "id": ["row_id"]},
+            }
+        )
+    )
+
+    report = validate_manifest(manifest, tmp_path)
+    assert report.ok is True

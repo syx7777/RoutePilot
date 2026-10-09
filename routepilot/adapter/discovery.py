@@ -23,6 +23,10 @@ IGNORED_DIRS = {
     ".mypy_cache",
     ".ruff_cache",
     "node_modules",
+    # RoutePilot 的 CommandProjectAdapter 把日志与 revert 存档写进 <project>/runs/，
+    # 且 run 报告里带有 editable 文件的副本；不忽略它会导致"跑过一次之后再 init"，
+    # editable 被自己产出的 runs/**/configs/*.yaml 污染。
+    "runs",
     "archive",
     "backups",
     ".routepilot_backups",
@@ -108,13 +112,23 @@ def _argparse_flags(source_head: str) -> list[str]:
     return sorted(set(re.findall(r'add_argument\(\s*["\'](--[A-Za-z0-9_\-]+)["\']', source_head)))
 
 
-def _pick_column(columns: list[str], hints: tuple[str, ...]) -> str | None:
+def _pick_column(
+    columns: list[str], hints: tuple[str, ...], *, short_suffix: bool = False
+) -> str | None:
     lowered = {column.lower(): column for column in columns}
     for hint in hints:
         if hint in lowered:
             return lowered[hint]
     for hint in hints:
         if len(hint) < MIN_SUBSTRING_HINT:
+            # 短提示词（如 "id"）默认只做精确匹配：否则 "id" 会在 grid / valid / valid_id
+            # 里到处误命中。但主键命名大量采用 "row_id" / "order_id" 这类下划线后缀，
+            # 因此对主键字段额外允许"以分隔符开头的尾部"匹配。
+            if not short_suffix:
+                continue
+            for low, original in lowered.items():
+                if low.endswith((f"_{hint}", f"-{hint}")):
+                    return original
             continue
         for low, original in lowered.items():
             if hint in low:
@@ -131,17 +145,48 @@ def _looks_like_entrypoint(path: Path, head: str) -> bool:
     return "argparse" in head and "__main__" in head
 
 
-def _classify(columns: list[str], path: Path) -> str | None:
+def _classification_score(columns: list[str], path: Path, kind: str) -> float:
+    """给"这个文件像不像某类产物"打分。
+
+    文件名语义比列名证据更可信（文件名是人取的，列名常被工具按通用习惯命名），
+    因此名字命中记 2 分、列名命中记 1 分。
+    """
+    hints = PREDICTION_HINTS if kind == "prediction" else ACTUAL_HINTS
     stem = path.stem.lower()
-    has_prediction = _pick_column(columns, PREDICTION_HINTS) is not None
-    has_actual = _pick_column(columns, ACTUAL_HINTS) is not None
-    name_is_prediction = any(hint in stem for hint in PREDICTION_HINTS)
-    name_is_actual = any(hint in stem for hint in ACTUAL_HINTS)
-    if has_prediction and (name_is_prediction or not has_actual):
-        return "prediction"
-    if has_actual and (name_is_actual or not has_prediction):
-        return "actual"
-    return None
+    name_hit = stem in hints or any(
+        hint in stem for hint in hints if len(hint) >= MIN_SUBSTRING_HINT
+    )
+    column_hit = _pick_column(columns, hints) is not None
+    return (2.0 if name_hit else 0.0) + (1.0 if column_hit else 0.0)
+
+
+def _classify(columns: list[str], path: Path) -> tuple[str | None, float, bool]:
+    """判定产物类型，返回 ``(kind, score, ambiguous)``。
+
+    取代旧的"按文件名排序、先到先得"：那种做法会让 ``outputs/leaderboard.csv``
+    （只要有一列叫 ``pred_time_val``）抢在 ``outputs/prediction.csv`` 前面被当成
+    预测产物——仅仅因为 ``leaderboard`` 的字母序在前。改为打分后，文件名语义
+    更明确的 ``prediction.csv`` 得分更高；两者难分时返回 ``ambiguous`` 交人工确认。
+    """
+    scores = {
+        kind: _classification_score(columns, path, kind) for kind in ("prediction", "actual")
+    }
+    best = max(scores.values())
+    if best <= 0:
+        return None, 0.0, False
+    winners = [kind for kind, value in scores.items() if value == best]
+    if len(winners) > 1:
+        return None, best, True
+    return winners[0], best, False
+
+
+def _best_candidate(candidates: list[tuple[float, Path]]) -> tuple[Path | None, bool]:
+    """取分数最高的候选；并列时按路径确定性择一，并回报"存在歧义"。"""
+    if not candidates:
+        return None, False
+    top = max(score for score, _ in candidates)
+    winners = sorted(path for score, path in candidates if score == top)
+    return winners[0], len(winners) > 1
 
 
 def draft_manifest(
@@ -201,17 +246,37 @@ def draft_manifest(
             + ", ".join(path.relative_to(root).as_posix() for path in entrypoint_candidates)
         )
 
-    prediction_file: Path | None = None
-    actual_file: Path | None = None
+    prediction_candidates: list[tuple[float, Path]] = []
+    actual_candidates: list[tuple[float, Path]] = []
+    ambiguous_files: list[str] = []
     for path in data_files:
-        columns = evidence["csv_columns"].get(path.relative_to(root).as_posix())
+        relative = path.relative_to(root).as_posix()
+        columns = evidence["csv_columns"].get(relative)
         if not columns:
             continue
-        kind = _classify(columns, path)
-        if kind == "prediction" and prediction_file is None:
-            prediction_file = path
-        elif kind == "actual" and actual_file is None:
-            actual_file = path
+        kind, score, is_ambiguous = _classify(columns, path)
+        if is_ambiguous:
+            ambiguous_files.append(relative)
+            continue
+        if kind == "prediction":
+            prediction_candidates.append((score, path))
+        elif kind == "actual":
+            actual_candidates.append((score, path))
+
+    prediction_file, prediction_tie = _best_candidate(prediction_candidates)
+    actual_file, actual_tie = _best_candidate(actual_candidates)
+
+    for label, tied, chosen in (
+        ("预测产物", prediction_tie, prediction_file),
+        ("真实值", actual_tie, actual_file),
+    ):
+        if tied and chosen is not None:
+            questions.append(
+                f"{label}候选得分并列，已按路径择一（{chosen.relative_to(root).as_posix()}），"
+                f"请确认 artifacts.{'prediction' if label == '预测产物' else 'actual'}"
+            )
+    for relative in ambiguous_files:
+        questions.append(f"{relative} 既像预测产物又像真实值，请确认其归属")
 
     if prediction_file is None:
         questions.append("未识别到预测产物 CSV，请确认 artifacts.prediction")
@@ -227,7 +292,7 @@ def draft_manifest(
     date_column = _pick_column(prediction_columns, DATE_HINTS) or _pick_column(actual_columns, DATE_HINTS)
     prediction_column = _pick_column(prediction_columns, PREDICTION_HINTS)
     actual_column = _pick_column(actual_columns, ACTUAL_HINTS)
-    id_column = _pick_column(prediction_columns, ID_HINTS)
+    id_column = _pick_column(prediction_columns, ID_HINTS, short_suffix=True)
 
     for label, value in (
         ("prediction_column", prediction_column),
