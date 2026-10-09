@@ -1,0 +1,86 @@
+# 项目 A 的离线候选提案（脚本化 proposer 用）。
+#
+# 每个提案给出被改文件的**完整新内容**；下方两轮会被 rollback，第三轮会被 keep，
+# 用于演示 keep/rollback 决策与最小改善阈值（min_delta=0.005）的作用。
+proposals:
+  - summary: 扩充滞后阶数与滚动窗口
+    rationale: 覆盖月内周期性（21/28 天）并加入 3 天短窗，提升对近期脉冲的响应。
+    files:
+      configs/base.yaml: |
+        data:
+          history: data/history.csv
+          horizon: 28
+
+        model:
+          n_estimators: 300
+          learning_rate: 0.05
+          num_leaves: 31
+          min_child_samples: 20
+
+        features:
+          lags: [1, 2, 3, 7, 14, 21, 28]
+          rolling_windows: [3, 7, 14, 28]
+          rolling_stats: [mean, std]
+          calendar_features: [dayofweek, month]
+
+  - summary: 补充细粒度日历特征
+    rationale: 在上一步基础上加入 day/week，让模型直接吃到月内位置与周序号。
+    files:
+      configs/base.yaml: |
+        data:
+          history: data/history.csv
+          horizon: 28
+
+        model:
+          n_estimators: 300
+          learning_rate: 0.05
+          num_leaves: 31
+          min_child_samples: 20
+
+        features:
+          lags: [1, 2, 3, 7, 14, 21, 28]
+          rolling_windows: [3, 7, 14, 28]
+          rolling_stats: [mean, std]
+          calendar_features: [dayofweek, month, day, week]
+
+  - summary: 引入历史累计均值特征
+    rationale: 用 expanding mean 表达序列的长期水平，弥补固定窗口看不到更早历史的短板。
+    files:
+      configs/base.yaml: |
+        data:
+          history: data/history.csv
+          horizon: 28
+
+        model:
+          n_estimators: 300
+          learning_rate: 0.05
+          num_leaves: 31
+          min_child_samples: 20
+
+        features:
+          lags: [1, 2, 3, 7, 14, 21, 28]
+          rolling_windows: [3, 7, 14, 28]
+          rolling_stats: [mean, std]
+          calendar_features: [dayofweek, month, day, week]
+          use_expanding_mean: true
+
+  - summary: 加深模型容量
+    rationale: 特征变多后同步提升树模型容量，检验是否还有空间。
+    files:
+      configs/base.yaml: |
+        data:
+          history: data/history.csv
+          horizon: 28
+
+        model:
+          n_estimators: 600
+          learning_rate: 0.03
+          num_leaves: 63
+          min_child_samples: 10
+
+        features:
+          lags: [1, 2, 3, 7, 14, 21, 28]
+          rolling_windows: [3, 7, 14, 28]
+          rolling_stats: [mean, std]
+          calendar_features: [dayofweek, month, day, week]
+          use_expanding_mean: true
