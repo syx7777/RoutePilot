@@ -102,47 +102,53 @@ def run_matrix(args: argparse.Namespace) -> int:
 
     records: list[dict] = []
     specs = _build_specs(args.modes, args.step_difficulty)
-    for spec in specs:
-        mode, label, overrides = spec["mode"], spec["label"], spec["overrides"]
-        for repeat in range(1, args.repeats + 1):
-            _restore(project, snapshot)
-            out = out_root / f"{label}-r{repeat}"
-            command = [
-                sys.executable, "-m", "routepilot.cli", "run",
-                "--manifest", str(manifest_path),
-                "--goal", args.goal,
-                "--router", mode,
-                "--max-trials", str(args.trials),
-                "--output", str(out),
-            ]
-            for item in overrides:
-                command += ["--step-difficulty", item]
-            completed = subprocess.run(
-                command,
-                cwd=str(REPO_ROOT),
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-            )
-            report_path = out / "run_report.json"
-            if completed.returncode != 0 or not report_path.is_file():
-                print(f"[FAIL] {label}-r{repeat} rc={completed.returncode}")
-                print(completed.stdout[-500:], completed.stderr[-500:])
-                continue
-            record = _collect(mode, label, repeat, _load_json(report_path))
-            records.append(record)
-            print(
-                f"[ok] {label}-r{repeat} base={record['baseline_wape']:.4f} "
-                f"final={record['final_wape']:.4f} kept={record['kept_trials']} "
-                f"cost=${record['cost_usd']:.6f} p95={record['p95_sec']:.1f}s"
-            )
+    try:
+        for spec in specs:
+            mode, label, overrides = spec["mode"], spec["label"], spec["overrides"]
+            for repeat in range(1, args.repeats + 1):
+                _restore(project, snapshot)
+                out = out_root / f"{label}-r{repeat}"
+                command = [
+                    sys.executable, "-m", "routepilot.cli", "run",
+                    "--manifest", str(manifest_path),
+                    "--goal", args.goal,
+                    "--router", mode,
+                    "--max-trials", str(args.trials),
+                    "--output", str(out),
+                ]
+                for item in overrides:
+                    command += ["--step-difficulty", item]
+                completed = subprocess.run(
+                    command,
+                    cwd=str(REPO_ROOT),
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+                report_path = out / "run_report.json"
+                if completed.returncode != 0 or not report_path.is_file():
+                    print(f"[FAIL] {label}-r{repeat} rc={completed.returncode}")
+                    print(completed.stdout[-500:], completed.stderr[-500:])
+                    continue
+                record = _collect(mode, label, repeat, _load_json(report_path))
+                records.append(record)
+                print(
+                    f"[ok] {label}-r{repeat} {record['primary_metric']} "
+                    f"{record['baseline_value']:.4f}->{record['final_value']:.4f} "
+                    f"kept={record['kept_trials']} cost=${record['cost_usd']:.6f} "
+                    f"p95={record['p95_sec']:.1f}s"
+                )
+    finally:
+        # keep 会就地修改被接入项目的 editable 文件；无论正常结束还是被 Ctrl-C
+        # 中断，都必须恢复到实验开始时的快照，否则下一次重复的基线已被污染。
+        _restore(project, snapshot)
+    print(f"[matrix] editable restored: {'OK' if _verify_restored(project, snapshot) else 'FAIL'}")
 
-    _restore(project, snapshot)
+    labels = [spec["label"] for spec in specs]
     (out_root / "records.json").write_text(
         json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    labels = [spec["label"] for spec in specs]
     summary = _summarize(records, labels)
     (out_root / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -150,6 +156,18 @@ def run_matrix(args: argparse.Namespace) -> int:
     (out_root / "summary.md").write_text(_render(summary, records), encoding="utf-8")
     print(f"\n[matrix] records={len(records)}  out={out_root}")
     return 0
+
+
+def _verify_restored(project: Path, snapshot: dict[str, str]) -> bool:
+    """确认所有被快照的 editable 文件已逐字节恢复。"""
+    for relative, content in snapshot.items():
+        path = project / relative
+        try:
+            if path.read_text(encoding="utf-8") != content:
+                return False
+        except (OSError, UnicodeDecodeError):
+            return False
+    return True
 
 
 def _build_specs(modes, step_difficulty: list[str]) -> list[dict]:
@@ -179,12 +197,15 @@ def _load_manifest_mapping(manifest_path: Path) -> dict:
 def _collect(mode: str, label: str, repeat: int, report: dict) -> dict:
     routing = report.get("routing") or {}
     profile = report.get("profile") or {}
+    # 主指标名从报告里读，避免硬编码 wape 在别的被接入项目（如 rmse）上静默失败
+    primary = report.get("primary_metric") or "wape"
     return {
         "mode": mode,
         "label": label,
         "repeat": repeat,
-        "baseline_wape": report["baseline_metrics"]["wape"],
-        "final_wape": report["final_metrics"]["wape"],
+        "primary_metric": primary,
+        "baseline_value": report["baseline_metrics"][primary],
+        "final_value": report["final_metrics"][primary],
         "kept_trials": report["kept_trials"],
         "calls": routing.get("calls", 0),
         "cost_usd": routing.get("cost_usd", 0.0),
@@ -204,14 +225,15 @@ def _summarize(records: list[dict], labels) -> dict:
         rows = [item for item in records if item["label"] == label]
         if not rows:
             continue
-        finals = [item["final_wape"] for item in rows]
-        deltas = [item["baseline_wape"] - item["final_wape"] for item in rows]
+        finals = [item["final_value"] for item in rows]
+        deltas = [item["baseline_value"] - item["final_value"] for item in rows]
         costs = [item["cost_usd"] for item in rows]
         summary[label] = {
             "mode": rows[0]["mode"],
+            "primary_metric": rows[0]["primary_metric"],
             "repeats": len(rows),
-            "final_wape_mean": statistics.mean(finals),
-            "final_wape_stdev": statistics.stdev(finals) if len(finals) > 1 else 0.0,
+            "final_value_mean": statistics.mean(finals),
+            "final_value_stdev": statistics.stdev(finals) if len(finals) > 1 else 0.0,
             "improvement_mean": statistics.mean(deltas),
             "improvement_stdev": statistics.stdev(deltas) if len(deltas) > 1 else 0.0,
             "cost_mean": statistics.mean(costs),
@@ -226,19 +248,21 @@ def _summarize(records: list[dict], labels) -> dict:
 
 
 def _render(summary: dict, records: list[dict]) -> str:
+    metric = next(iter(summary.values()))["primary_metric"] if summary else "metric"
     lines = [
         "# 路由模式对照实验",
         "",
         f"- 运行次数：{len(records)}（每模式 {len(records) // max(len(summary), 1)} 次重复）",
-        "- 指标含义：final wape 越小越好；improvement = baseline − final",
+        f"- 主指标：{metric}（越{'小' if metric != 'accuracy' else '大'}越好）；"
+        f"improvement = baseline − final",
         "",
-        "| 模式 | 重复 | final wape | improvement | 成本(USD) | tokens | P95(s) | 采纳数 | 改善次数 |",
+        f"| 模式 | 重复 | final {metric} | improvement | 成本(USD) | tokens | P95(s) | 采纳数 | 改善次数 |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for label, item in summary.items():
         lines.append(
             f"| {label} | {item['repeats']} | "
-            f"{item['final_wape_mean']:.4f}±{item['final_wape_stdev']:.4f} | "
+            f"{item['final_value_mean']:.4f}±{item['final_value_stdev']:.4f} | "
             f"{item['improvement_mean']:.4f}±{item['improvement_stdev']:.4f} | "
             f"{item['cost_mean']:.6f}±{item['cost_stdev']:.6f} | "
             f"{item['tokens_mean']:.0f} | {item['p95_mean']:.2f} | "
@@ -252,9 +276,9 @@ def _render(summary: dict, records: list[dict]) -> str:
     if any("calibrated" in label for label in summary):
         lines += [
             ">",
-            "> dynamic-calibrated 的难度先验由本轮实验自身的运行结果标定，属于",
-            "> calibration-on-train：它只能说明内置先验需要校准，不能作为 dynamic",
-            "> 相对 static 的独立收益证据（需要另留一组未参与标定的数据来评估）。",
+            "> dynamic-calibrated 的难度先验由**先前实验**（可能来自另一个被接入项目）",
+            "> 的运行结果标定，属于 calibration-on-train：它只能说明内置先验需要校准，",
+            "> 不能作为 dynamic 相对 static 的独立收益证据（需另留一组未参与标定的数据）。",
         ]
     lines.append("")
     return "\n".join(lines)

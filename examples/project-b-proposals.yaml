@@ -1,0 +1,132 @@
+# 项目 B 的离线候选提案（脚本化 proposer 用；用于把"框架闭环"与"LLM 随机性"解耦）。
+#
+# 三轮的真实实测结果（基线 test_rmse=2.084328，min_delta=0.0417，确定性噪声下限为 0）：
+#   1) 删除冗余/纯噪声列         → 2.064361  改善 0.0200 < 0.0417 → rollback
+#   2) 开启隐藏交互 x3*x4、x5*x6 → 1.091294  改善 0.9930 ≥ 0.0417 → keep
+#   3) 在第 2 轮基础上再删噪声列 → 1.087391  改善 0.0039 < 0.0417 → rollback
+#
+# 注意：提案是**整文件替换**，每个 files 值必须是被改文件的完整新内容。
+# 确定性锁写在 src/train.py（protected）里，因此这里的配置无需重复声明。
+proposals:
+  - summary: 删除冗余列 x9 与纯噪声列 x12
+    rationale: x9 与 x1 高度相关、x12 与目标无关，去掉它们可降低过拟合与噪声。
+    files:
+      configs/base.yaml: |
+        data:
+          train: data/train.csv
+          test: data/test.csv
+          actual: data/actual.csv
+          id_column: row_id
+          label: y
+
+        features:
+          add_log_transforms: false
+          add_interactions: false
+          interactions: []
+          add_ratios: false
+          ratios: []
+          drop_columns: [x9, x12]
+
+        ag:
+          presets: medium_quality
+          eval_metric: root_mean_squared_error
+          fit_weighted_ensemble: true
+          tuning:
+            mode: internal
+            frac: 0.2
+          models:
+            GBM:
+              num_boost_round: 300
+              learning_rate: 0.05
+              num_leaves: 31
+              min_data_in_leaf: 20
+            LR: {}
+            KNN: {}
+
+        determinism:
+          mode: strict
+
+        output:
+          predictor_dir: outputs/autogluon_models
+
+  - summary: 为线性模型显式构造 x3*x4 与 x5*x6 交互特征
+    rationale: 目标里含乘法交互，而原表只有单个原始列；显式乘积能让线性模型直接吃到非线性结构。
+    files:
+      configs/base.yaml: |
+        data:
+          train: data/train.csv
+          test: data/test.csv
+          actual: data/actual.csv
+          id_column: row_id
+          label: y
+
+        features:
+          add_log_transforms: false
+          add_interactions: true
+          interactions: [x3, x4, x5, x6]
+          add_ratios: false
+          ratios: []
+          drop_columns: []
+
+        ag:
+          presets: medium_quality
+          eval_metric: root_mean_squared_error
+          fit_weighted_ensemble: true
+          tuning:
+            mode: internal
+            frac: 0.2
+          models:
+            GBM:
+              num_boost_round: 300
+              learning_rate: 0.05
+              num_leaves: 31
+              min_data_in_leaf: 20
+            LR: {}
+            KNN: {}
+
+        determinism:
+          mode: strict
+
+        output:
+          predictor_dir: outputs/autogluon_models
+
+  - summary: 在交互特征基础上再删除冗余与噪声列
+    rationale: 已有交互特征后，冗余列与噪声列只会增加方差，试着进一步精简输入。
+    files:
+      configs/base.yaml: |
+        data:
+          train: data/train.csv
+          test: data/test.csv
+          actual: data/actual.csv
+          id_column: row_id
+          label: y
+
+        features:
+          add_log_transforms: false
+          add_interactions: true
+          interactions: [x3, x4, x5, x6]
+          add_ratios: false
+          ratios: []
+          drop_columns: [x9, x12]
+
+        ag:
+          presets: medium_quality
+          eval_metric: root_mean_squared_error
+          fit_weighted_ensemble: true
+          tuning:
+            mode: internal
+            frac: 0.2
+          models:
+            GBM:
+              num_boost_round: 300
+              learning_rate: 0.05
+              num_leaves: 31
+              min_data_in_leaf: 20
+            LR: {}
+            KNN: {}
+
+        determinism:
+          mode: strict
+
+        output:
+          predictor_dir: outputs/autogluon_models
