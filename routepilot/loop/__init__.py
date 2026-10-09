@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from routepilot.loop.diagnose import LlmDiagnoser
 from routepilot.loop.proposer import (
     FileEdit,
     LlmProposer,
@@ -17,6 +18,7 @@ from routepilot.loop.trial import OptimizationOutcome, TrialRecord, run_optimiza
 
 __all__ = [
     "FileEdit",
+    "LlmDiagnoser",
     "LlmProposer",
     "OptimizationOutcome",
     "Proposal",

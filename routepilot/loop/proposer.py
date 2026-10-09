@@ -37,6 +37,7 @@ class ProposalContext:
     best_metrics: dict[str, float]
     history: list[dict[str, Any]] = field(default_factory=list)
     editable_files: dict[str, str] = field(default_factory=dict)
+    diagnosis: str = ""
 
 
 class Proposer(Protocol):
@@ -148,6 +149,7 @@ class LlmProposer:
                 "trial_index": context.trial_index,
                 "baseline_metrics": context.baseline_metrics,
                 "best_metrics": context.best_metrics,
+                "diagnosis": context.diagnosis,
                 "previous_trials": [
                     {
                         "summary": item.get("summary"),

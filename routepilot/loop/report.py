@@ -70,8 +70,48 @@ def render_markdown(outcome: OptimizationOutcome) -> str:
         )
     if not outcome.trials:
         lines.append("| - | 无提案 | - | - | - | - | - |")
+    lines.extend(_render_routing(outcome.routing))
     lines.append("")
     return "\n".join(lines)
+
+
+def _render_routing(routing: dict) -> list[str]:
+    if not routing:
+        return []
+    lines = [
+        "",
+        "## 路由与成本",
+        "",
+        f"- LLM 调用：{routing.get('calls', 0)}",
+        f"- 总成本：${routing.get('cost_usd', 0):.6f}",
+        f"- 总 tokens：{routing.get('tokens', 0)}",
+        f"- 延迟 P50 / P95：{routing.get('latency_p50_sec', 0):.2f}s / "
+        f"{routing.get('latency_p95_sec', 0):.2f}s",
+        f"- 调用成功率：{routing.get('success_rate', 0):.0%}",
+        "",
+        "### 按档位",
+        "",
+        "| 档位 | 调用 | 成本(USD) | tokens | P95(s) | 成功率 |",
+        "|---|---|---|---|---|---|",
+    ]
+    for name, item in (routing.get("by_tier") or {}).items():
+        lines.append(
+            f"| {name} | {item['calls']} | {item['cost_usd']:.6f} | {item['tokens']} | "
+            f"{item['latency_p95_sec']:.2f} | {item['success_rate']:.0%} |"
+        )
+    lines += [
+        "",
+        "### 按 step",
+        "",
+        "| step | 调用 | 成本(USD) | tokens | P95(s) | 成功率 |",
+        "|---|---|---|---|---|---|",
+    ]
+    for name, item in (routing.get("by_step") or {}).items():
+        lines.append(
+            f"| {name} | {item['calls']} | {item['cost_usd']:.6f} | {item['tokens']} | "
+            f"{item['latency_p95_sec']:.2f} | {item['success_rate']:.0%} |"
+        )
+    return lines
 
 
 def _delta(before: float | None, after: float | None) -> float:

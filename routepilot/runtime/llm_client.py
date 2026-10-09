@@ -337,16 +337,33 @@ def _build_payload(
         payload["max_tokens"] = max_tokens
     if stream:
         payload["stream"] = True
-    if _deepseek_thinking_enabled(provider, model):
-        payload["thinking"] = {"type": _env_value(provider, "THINKING") or "enabled"}
+    thinking = _deepseek_thinking_setting(provider, model)
+    if thinking == "enabled":
+        payload["thinking"] = {"type": "enabled"}
         payload["reasoning_effort"] = _env_value(provider, "REASONING_EFFORT") or "high"
+    elif thinking == "disabled":
+        # 必须显式关闭：DeepSeek 默认开启思考，推理 token 会吃掉 max_tokens，
+        # 表现为 completion_tokens 打满而 content 为空。
+        payload["thinking"] = {"type": "disabled"}
+        payload["temperature"] = temperature
     elif _should_send_temperature(provider, model):
         payload["temperature"] = temperature
     return payload
 
 
 def _should_send_temperature(provider: str, model: str | None) -> bool:
-    return not _deepseek_thinking_enabled(provider, model)
+    return _deepseek_thinking_setting(provider, model) != "enabled"
+
+
+def _deepseek_thinking_setting(provider: str, model: str | None) -> str | None:
+    """返回 DeepSeek V4 系列的思考模式开关；其它模型返回 None（不干预）。"""
+    if provider != "deepseek" or not model:
+        return None
+    normalized = model.strip().lower()
+    if not (normalized.startswith("deepseek-v4") or normalized.startswith("deepseek-flash")):
+        return None
+    setting = (_env_value(provider, "THINKING") or "enabled").strip().lower()
+    return "disabled" if setting == "disabled" else "enabled"
 
 
 def _env_value(provider: str, suffix: str) -> str | None:
@@ -378,10 +395,7 @@ def _default_model(provider: str) -> str | None:
 
 
 def _deepseek_thinking_enabled(provider: str, model: str | None) -> bool:
-    if provider != "deepseek" or not model:
-        return False
-    setting = (_env_value(provider, "THINKING") or "enabled").strip().lower()
-    return model.lower() == "deepseek-v4-pro" and setting != "disabled"
+    return _deepseek_thinking_setting(provider, model) == "enabled"
 
 
 def _llm_retry_limit() -> int:

@@ -18,8 +18,14 @@ from routepilot.adapter.manifest import (
     resolve_project_root,
     validate_manifest,
 )
-from routepilot.loop import LlmProposer, ScriptedProposer, run_optimization, write_report
-from routepilot.runtime.llm_client import create_llm_client
+from routepilot.loop import (
+    LlmDiagnoser,
+    LlmProposer,
+    ScriptedProposer,
+    run_optimization,
+    write_report,
+)
+from routepilot.router import Router, RouterConfig, RouterMode, RoutedLLMClient, UsageLedger
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -53,6 +59,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_parser.add_argument("--provider", default=None)
     run_parser.add_argument("--model", default=None)
+    run_parser.add_argument(
+        "--router",
+        choices=[mode.value for mode in RouterMode],
+        default=RouterMode.DYNAMIC.value,
+        help="strong=全强模型 / weak=全弱模型 / static=固定映射 / dynamic=动态路由",
+    )
+    run_parser.add_argument(
+        "--no-diagnose", action="store_true", help="关闭诊断步骤（仅保留提案步骤）"
+    )
 
     return parser
 
@@ -168,19 +183,31 @@ def _run(args: argparse.Namespace) -> int:
         return 1
 
     adapter = build_adapter(manifest, project_root)
+    ledger = None
+    router = None
+    diagnoser = None
     if args.proposals:
         proposer = ScriptedProposer.from_file(args.proposals)
         print(f"proposer : scripted ({args.proposals})")
     else:
-        client = create_llm_client(provider=args.provider, model=args.model)
-        if not client.available():
+        ledger = UsageLedger()
+        router = Router(
+            config=RouterConfig(
+                mode=RouterMode(args.router), budget_usd=manifest.budget.max_usd
+            ),
+            ledger=ledger,
+        )
+        routed_client = RoutedLLMClient(router=router, ledger=ledger)
+        if not routed_client.available():
             print(
                 "[routepilot] 未检测到可用的 LLM 凭据。请配置 API key，"
                 "或用 --proposals 指定离线候选提案。"
             )
             return 2
-        proposer = LlmProposer(client)
-        print(f"proposer : llm ({client.provider}/{client.model})")
+        proposer = LlmProposer(routed_client)
+        diagnoser = None if args.no_diagnose else LlmDiagnoser(routed_client)
+        tiers = ", ".join(f"{tier.name}={tier.model}" for tier in router.tiers)
+        print(f"proposer : llm (router={args.router}; {tiers})")
 
     output_dir = Path(args.output) if args.output else _default_output_dir(manifest)
     print(f"output   : {output_dir}")
@@ -190,6 +217,9 @@ def _run(args: argparse.Namespace) -> int:
             manifest,
             goal=args.goal,
             proposer=proposer,
+            diagnoser=diagnoser,
+            ledger=ledger,
+            router=router,
             max_trials=args.max_trials,
         )
     except RuntimeError as exc:
@@ -202,6 +232,18 @@ def _run(args: argparse.Namespace) -> int:
     print(f"baseline : {primary}={outcome.baseline_metrics.get(primary, float('nan')):.4f}")
     print(f"final    : {primary}={outcome.final_metrics.get(primary, float('nan')):.4f}")
     print(f"kept     : {outcome.kept_trials or '无'}")
+    if outcome.routing:
+        routing = outcome.routing
+        print(
+            f"llm      : calls={routing['calls']} cost=${routing['cost_usd']:.6f} "
+            f"tokens={routing['tokens']} p95={routing['latency_p95_sec']:.2f}s "
+            f"success={routing['success_rate']:.0%}"
+        )
+        for name, item in routing["by_tier"].items():
+            print(
+                f"  tier {name:6s}: calls={item['calls']} cost=${item['cost_usd']:.6f} "
+                f"tokens={item['tokens']}"
+            )
     print(f"report   : {markdown_path}")
     print(f"json     : {json_path}")
     return 0

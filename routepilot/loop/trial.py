@@ -44,6 +44,7 @@ class OptimizationOutcome:
     total_duration_sec: float
     # keep 是就地生效的，因此必须留档 editable 文件的原始内容，才能事后回滚。
     original_editable_files: dict[str, str] = field(default_factory=dict)
+    routing: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -59,6 +60,9 @@ def run_optimization(
     *,
     goal: str,
     proposer: Proposer,
+    diagnoser: Callable[[ProposalContext], str] | None = None,
+    ledger: Any = None,
+    router: Any = None,
     max_trials: int | None = None,
     log: LogFn = print,
 ) -> OptimizationOutcome:
@@ -94,6 +98,10 @@ def run_optimization(
             history=[asdict(record) for record in trials],
             editable_files=_editable_contents(adapter),
         )
+        if diagnoser is not None:
+            context.diagnosis = diagnoser(context) or ""
+            if context.diagnosis:
+                log(f"[trial {trial_index}] 诊断: {context.diagnosis}")
         proposal = proposer.propose(context)
         if proposal is None:
             log(f"[trial {trial_index}] proposer 不再给出候选，提前结束")
@@ -184,6 +192,7 @@ def run_optimization(
         kept_trials=kept,
         total_duration_sec=time.perf_counter() - started,
         original_editable_files=original_editable_files,
+        routing=ledger.summary() if ledger is not None else {},
     )
 
 

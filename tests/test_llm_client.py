@@ -228,6 +228,7 @@ def test_deepseek_v4_pro_enables_thinking_payload(monkeypatch) -> None:
 
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
     monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
+    monkeypatch.setenv("DEEPSEEK_THINKING", "enabled")
     monkeypatch.setenv("DEEPSEEK_REASONING_EFFORT", "high")
     monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
@@ -240,6 +241,46 @@ def test_deepseek_v4_pro_enables_thinking_payload(monkeypatch) -> None:
     assert payload["thinking"] == {"type": "enabled"}
     assert payload["reasoning_effort"] == "high"
     assert "temperature" not in payload
+
+
+def test_deepseek_flash_sends_explicit_thinking_disabled(monkeypatch) -> None:
+    """flash 默认开启思考，必须显式关闭，否则推理 token 会吃满 max_tokens 导致空响应。"""
+    calls = []
+
+    def fake_post(url, headers, json, timeout):
+        calls.append({"json": json})
+        return FakeResponse()
+
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-flash")
+    monkeypatch.setenv("DEEPSEEK_THINKING", "disabled")
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
+
+    client = create_llm_client(provider="deepseek")
+    client.complete_with_usage("", "hello")
+
+    payload = calls[0]["json"]
+    assert payload["thinking"] == {"type": "disabled"}
+    assert "reasoning_effort" not in payload
+    assert "temperature" in payload
+
+
+def test_non_v4_deepseek_model_does_not_inject_thinking(monkeypatch) -> None:
+    calls = []
+
+    def fake_post(url, headers, json, timeout):
+        calls.append({"json": json})
+        return FakeResponse()
+
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
+    monkeypatch.setenv("DEEPSEEK_THINKING", "disabled")
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
+
+    client = create_llm_client(provider="deepseek")
+    client.complete_with_usage("", "hello")
+
+    assert "thinking" not in calls[0]["json"]
 
 
 def test_llm_client_streams_openai_compatible_chunks(monkeypatch) -> None:
