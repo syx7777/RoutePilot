@@ -84,7 +84,7 @@ artifact discovery 输出：
 
 # 易错点
 
-- 不要递归扫描 `.python_packages`、`.venv`、`node_modules`、`archive`、`.comboscope_backups`、缓存目录或历史备份目录。
+- 不要递归扫描 `.python_packages`、`.venv`、`node_modules`、`archive`、`.routepilot_backups`、缓存目录或历史备份目录。
 - `prediction_old.csv` 和 `prediction_new.csv` 同时存在时，不要只因名字像就随机选。
 - `metrics.csv` 不是 prediction，也不是 actual。
 - `label.csv`、`truth.csv`、`actual.csv`、`truth.csv`、`label.csv` 都可能是真实值候选，但需要 discovery 规则确认。

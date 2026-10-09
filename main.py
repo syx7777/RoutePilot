@@ -4,14 +4,14 @@ import argparse
 import sys
 from pathlib import Path
 
-from comboscope.orchestrators.langgraph_flow import run_once
-from comboscope.orchestrators.sequential_flow import run_once_sequential
-from comboscope.runtime.ask_paths import resolve_experiment_dir
-from comboscope.runtime.cli_summary import print_run_summary
+from routepilot.orchestrators.langgraph_flow import run_once
+from routepilot.orchestrators.sequential_flow import run_once_sequential
+from routepilot.runtime.ask_paths import resolve_experiment_dir
+from routepilot.runtime.cli_summary import print_run_summary
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="ComboScope CLI")
+    parser = argparse.ArgumentParser(description="RoutePilot CLI")
     sub = parser.add_subparsers(dest="command", required=True)
     run = sub.add_parser("run")
     run.add_argument("--experiment")
@@ -41,7 +41,7 @@ def main() -> int:
             run_once(request)
     except Exception as exc:  # noqa: BLE001 - CLI should point humans at the persisted error report.
         error_report = Path(request["output_dir"]) / "error_report.md"
-        print(f"ComboScope run failed: {exc}")
+        print(f"RoutePilot run failed: {exc}")
         if error_report.exists():
             print(f"error_report: {error_report.as_posix()}")
         return 1

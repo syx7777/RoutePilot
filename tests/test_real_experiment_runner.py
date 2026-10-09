@@ -7,14 +7,14 @@ import sys
 import yaml
 from pathlib import Path
 
-import comboscope.core.real_experiment_runner as real_runner
-from comboscope.core.real_experiment_runner import (
+import routepilot.core.real_experiment_runner as real_runner
+from routepilot.core.real_experiment_runner import (
     _audit_feature_application,
     _train_command_validation_error,
     generate_trial_train_wrapper,
     run_real_experiment,
 )
-from comboscope.runtime.doubao_client import LLMCallResult
+from routepilot.runtime.doubao_client import LLMCallResult
 
 
 class FakeAgent2Client:
@@ -4641,7 +4641,7 @@ def test_real_runner_invalid_llm_code_package_does_not_train(tmp_path: Path) -> 
 
 
 def test_no_runtime_import_references_package_predict_adapter(repo_root: Path) -> None:
-    runtime_files = [*repo_root.glob("comboscope/**/*.py")]
+    runtime_files = [*repo_root.glob("routepilot/**/*.py")]
     references = [
         path.as_posix()
         for path in runtime_files

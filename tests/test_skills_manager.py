@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from comboscope.runtime.skills_manager import SkillsManager
+from routepilot.runtime.skills_manager import SkillsManager
 
 
 def test_skills_manager_discovers_forecast_skill_metadata(repo_root):

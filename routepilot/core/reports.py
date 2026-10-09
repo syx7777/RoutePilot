@@ -179,7 +179,7 @@ def _rollback_template(context: dict[str, Any]) -> str:
     feature = exp["feature_name"]
     reason = context["primary_reason"]
     lines = [
-        "# ComboScope 实验验证结论报告",
+        "# RoutePilot 实验验证结论报告",
         "",
         "## 1. 结论",
         "",
@@ -227,7 +227,7 @@ def _keep_template(context: dict[str, Any]) -> str:
     feature = exp["feature_name"]
     reason = context["primary_reason"]
     lines = [
-        "# ComboScope 实验验证结论报告",
+        "# RoutePilot 实验验证结论报告",
         "",
         "## 1. 结论",
         "",

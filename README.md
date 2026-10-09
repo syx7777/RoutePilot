@@ -1,6 +1,6 @@
-# ForecastOps Agent / ComboScope
+# RoutePilot
 
-ForecastOps Agent v0.2，代码包名为 `comboscope`，是一个面向通用预测实验的自动诊断与实验验证 Agent。它读取一个已有预测实验目录中的代码、日志、预测结果和真实值，先用本地 forecast skills 做评测与 badcase 诊断，再生成一轮可验证的特征实验计划，由 trial 级别的训练副本执行实验，最后输出指标对比、keep/rollback 决策和结论报告。
+RoutePilot v0.2，代码包名为 `routepilot`，是一个面向通用预测实验的自动诊断与实验验证 Agent。它读取一个已有预测实验目录中的代码、日志、预测结果和真实值，先用本地 forecast skills 做评测与 badcase 诊断，再生成一轮可验证的特征实验计划，由 trial 级别的训练副本执行实验，最后输出指标对比、keep/rollback 决策和结论报告。
 
 项目目标不是绑定某个业务线、模型或数据形态，而是沉淀一套通用的预测实验研究循环：
 
@@ -21,7 +21,7 @@ ForecastOps Agent v0.2，代码包名为 `comboscope`，是一个面向通用预
 ├── main.py                         # 单轮实验入口
 ├── loop.py                         # 多轮 trial 循环入口
 ├── program.md                      # 项目运行规则与边界
-├── comboscope/
+├── routepilot/
 │   ├── agents/                     # Agent1/Agent2 的计划、决策和报告逻辑
 │   ├── core/                       # 实验计划、受控修改、训练调用、指标对比和 rollback
 │   ├── orchestrators/              # LangGraph/sequential 编排入口
@@ -35,7 +35,7 @@ ForecastOps Agent v0.2，代码包名为 `comboscope`，是一个面向通用预
 
 ## 两个 Agent
 
-ForecastOps Agent 的一次运行由两个角色协作完成。
+RoutePilot 的一次运行由两个角色协作完成。
 
 Agent1 负责研究和计划。它基于 skill 产物读取证据，形成误差分析、badcase 摘要、问题上下文、特征假设和实验计划。它不会在缺少证据时声称确定性根因，也不会把业务特定字段或模型写死到通用提示中。
 
@@ -54,7 +54,7 @@ uv sync
 
 ## LLM 配置
 
-ForecastOps Agent 通过 OpenAI-compatible 接口调用 LLM。配置可以写入本地 `.env`，也可以在 shell 中导出环境变量；不要把真实 API key 提交到仓库。仓库提供了 `.env.example`，可以复制后按需填写：
+RoutePilot 通过 OpenAI-compatible 接口调用 LLM。配置可以写入本地 `.env`，也可以在 shell 中导出环境变量；不要把真实 API key 提交到仓库。仓库提供了 `.env.example`，可以复制后按需填写：
 
 ```bash
 cp .env.example .env
@@ -81,7 +81,7 @@ export DEEPSEEK_REASONING_EFFORT="high"
 通用 OpenAI-compatible provider：
 
 ```bash
-export COMBOSCOPE_LLM_PROVIDER="openai-compatible"
+export ROUTEPILOT_LLM_PROVIDER="openai-compatible"
 export LLM_API_KEY="你的 API Key"
 export LLM_BASE_URL="https://api.example.com/v1"
 export LLM_MODEL="你的模型名"
@@ -92,24 +92,24 @@ export LLM_MODEL="你的模型名"
 如果你的 provider 需要固定某一种接口，可以显式指定：
 
 ```bash
-export COMBOSCOPE_LLM_API_MODE="chat"
+export ROUTEPILOT_LLM_API_MODE="chat"
 # 或
-export COMBOSCOPE_LLM_API_MODE="responses"
+export ROUTEPILOT_LLM_API_MODE="responses"
 ```
 
-如果已经在 `.env` 或 shell 中设置了 `COMBOSCOPE_LLM_PROVIDER` 和 `LLM_MODEL`，运行命令可以省略 `--llm-provider` 和 `--model`，系统会按环境变量选择模型。
+如果已经在 `.env` 或 shell 中设置了 `ROUTEPILOT_LLM_PROVIDER` 和 `LLM_MODEL`，运行命令可以省略 `--llm-provider` 和 `--model`，系统会按环境变量选择模型。
 
 也可以只传 `--model deepseek-v4-pro` 或 `--model gpt-...`，系统会根据模型名前缀推断 provider。未显式配置时，默认 provider 为 `doubao`。
 
 LLM 请求默认会对临时网络、代理、超时以及 `429/500/502/503/504` 进行重试：
 
 ```bash
-export COMBOSCOPE_LLM_RETRIES=3
-export COMBOSCOPE_LLM_RETRY_BACKOFF_SECONDS=5
-export COMBOSCOPE_LLM_RETRY_MAX_BACKOFF_SECONDS=60
+export ROUTEPILOT_LLM_RETRIES=3
+export ROUTEPILOT_LLM_RETRY_BACKOFF_SECONDS=5
+export ROUTEPILOT_LLM_RETRY_MAX_BACKOFF_SECONDS=60
 ```
 
-设置 `COMBOSCOPE_LLM_RETRIES=0` 可以关闭重试。
+设置 `ROUTEPILOT_LLM_RETRIES=0` 可以关闭重试。
 
 ## 单轮运行
 
@@ -246,7 +246,7 @@ runs/trial_001/
 - 可选的训练日志或评测日志
 - 可选的配置文件、文档、metrics 文件和历史输出
 
-ForecastOps Agent 会先扫描目录，再由 Agent1 基于证据选择 `prediction_path`、`actual_path`、列名、测试窗口、训练入口和可复用字段，生成 `artifact_contract.json`。如果模型家族、目标函数或业务含义无法从代码、文档或配置中识别，会标记为 `unknown`，不会编造。
+RoutePilot 会先扫描目录，再由 Agent1 基于证据选择 `prediction_path`、`actual_path`、列名、测试窗口、训练入口和可复用字段，生成 `artifact_contract.json`。如果模型家族、目标函数或业务含义无法从代码、文档或配置中识别，会标记为 `unknown`，不会编造。
 
 输入可以是 toy fixture，也可以是真实预测实验。真实实验中，Agent2 会先复制训练入口和必要 Python 依赖到 trial 目录，再只修改副本中的本轮 `train.py` wrapper。
 
@@ -263,7 +263,7 @@ ForecastOps Agent 会先扫描目录，再由 Agent1 基于证据选择 `predict
 
 ## 安全边界
 
-ForecastOps Agent 保持通用预测实验边界：
+RoutePilot 保持通用预测实验边界：
 
 - 不在 `skills/`、Agent prompt 或报告逻辑中写死具体业务线、套餐、外卖、单品或固定模型
 - 不在 `core/` 下新增评测工具，评测能力来自 `skills/`

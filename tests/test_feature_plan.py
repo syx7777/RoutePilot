@@ -4,14 +4,14 @@ import yaml
 import pytest
 from pydantic import ValidationError
 
-from comboscope.agents.evaluation_hypothesis_agent import (
+from routepilot.agents.evaluation_hypothesis_agent import (
     generate_experiment_plan,
     generate_feature_hypothesis,
     generate_real_experiment_plan,
     generate_real_feature_hypothesis,
 )
-from comboscope.core.schemas import ExperimentChange, ExperimentPlan
-from comboscope.runtime.doubao_client import LLMCallResult
+from routepilot.core.schemas import ExperimentChange, ExperimentPlan
+from routepilot.runtime.doubao_client import LLMCallResult
 
 
 class FakeLLM:
@@ -137,7 +137,7 @@ def test_feature_hypothesis_prompt_includes_yaml_output_contract() -> None:
         llm,
     )
 
-    assert "ComboScope YAML output contract" in llm.calls[0]["system_prompt"]
+    assert "RoutePilot YAML output contract" in llm.calls[0]["system_prompt"]
     assert "Return exactly one YAML mapping" in llm.calls[0]["user_prompt"]
 
 

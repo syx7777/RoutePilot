@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from comboscope.runtime.trial_archive import archive_trial_files
+from routepilot.runtime.trial_archive import archive_trial_files
 
 
 def test_archive_trial_files_groups_key_artifacts(tmp_path: Path) -> None:

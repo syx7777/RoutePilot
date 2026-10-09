@@ -6,12 +6,12 @@ from pathlib import Path
 import pytest
 import yaml
 
-import comboscope.orchestrators.langgraph_flow as langgraph_flow
-from comboscope.orchestrators.langgraph_flow import _normalize_report_markdown
-from comboscope.orchestrators.langgraph_flow import _parse_llm_yaml_mapping
-from comboscope.orchestrators.langgraph_flow import _validated_agent2_execution_plan
-from comboscope.orchestrators.langgraph_flow import run_forecast_evaluation, run_once
-from comboscope.runtime.doubao_client import LLMCallResult
+import routepilot.orchestrators.langgraph_flow as langgraph_flow
+from routepilot.orchestrators.langgraph_flow import _normalize_report_markdown
+from routepilot.orchestrators.langgraph_flow import _parse_llm_yaml_mapping
+from routepilot.orchestrators.langgraph_flow import _validated_agent2_execution_plan
+from routepilot.orchestrators.langgraph_flow import run_forecast_evaluation, run_once
+from routepilot.runtime.doubao_client import LLMCallResult
 
 
 class SequencedLLM:
@@ -281,7 +281,7 @@ def _fake_llm() -> SequencedLLM:
             "LocateCodeChangePlan": "change_plan:\n- path: train.py\n  function: main\n  reason: implement feature\n",
             "GenerateCodeEdits": _agent2_code_package(),
             "WriteForecastReport": "# 预测实验评测报告\n\n## 1. 一句话结论\n- 基于证据定位到高目标值低估。\n",
-            "WriteFinalReport": "# ComboScope 实验验证结论报告\n\n## 1. 结论\n- 最终报告由 LLM 生成。\n",
+            "WriteFinalReport": "# RoutePilot 实验验证结论报告\n\n## 1. 结论\n- 最终报告由 LLM 生成。\n",
         }
     )
 
@@ -493,7 +493,7 @@ def test_run_once_repairs_invalid_agent2_execution_plan(
             "LocateCodeChangePlan": "change_plan:\n- path: train.py\n  function: main\n  reason: implement feature\n",
             "GenerateCodeEdits": _agent2_code_package(),
             "WriteForecastReport": "# 预测实验评测报告\n\n## 1. 一句话结论\n- 已完成执行计划修复。\n",
-            "WriteFinalReport": "# ComboScope 实验验证结论报告\n\n## 1. 结论\n- 已完成最终验证。\n",
+            "WriteFinalReport": "# RoutePilot 实验验证结论报告\n\n## 1. 结论\n- 已完成最终验证。\n",
         }
     )
     monkeypatch.setattr(langgraph_flow, "create_llm_client", lambda provider=None, model=None: client)
@@ -532,7 +532,7 @@ def test_run_once_repairs_unparseable_agent2_execution_plan_yaml(
             "LocateCodeChangePlan": "change_plan:\n- path: train.py\n  function: main\n  reason: implement feature\n",
             "GenerateCodeEdits": _agent2_code_package(),
             "WriteForecastReport": "# 预测实验评测报告\n\n## 1. 一句话结论\n- 已完成执行计划修复。\n",
-            "WriteFinalReport": "# ComboScope 实验验证结论报告\n\n## 1. 结论\n- 已完成最终验证。\n",
+            "WriteFinalReport": "# RoutePilot 实验验证结论报告\n\n## 1. 结论\n- 已完成最终验证。\n",
         }
     )
     monkeypatch.setattr(langgraph_flow, "create_llm_client", lambda provider=None, model=None: client)

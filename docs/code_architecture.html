@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ForecastOps Agent / ComboScope 代码架构</title>
+  <title>RoutePilot 代码架构</title>
   <style>
     :root {
       --bg: #f6f7f9;
@@ -483,8 +483,8 @@
   <div class="layout">
     <aside>
       <div class="brand">
-        <div class="name">ComboScope 架构图</div>
-        <div class="sub">ForecastOps Agent v0.2 代码结构与运行链路</div>
+        <div class="name">RoutePilot 架构图</div>
+        <div class="sub">RoutePilot v0.2 代码结构与运行链路</div>
       </div>
       <nav aria-label="页面导航">
         <a href="#overview">01 总览</a>
@@ -501,14 +501,14 @@
 
     <main>
       <header id="overview" class="hero">
-        <h1>ForecastOps Agent / ComboScope 代码架构</h1>
+        <h1>RoutePilot 代码架构</h1>
         <p class="lead">
           这个页面用于快速看清项目代码架构：入口在哪里，Agent 如何协作，核心层和 skills 如何分工，
           LangGraph 如何编排，以及一次 trial 会落哪些证据产物。
         </p>
         <div class="meta-grid">
           <div class="meta"><b>项目定位</b><span>通用预测实验诊断与验证</span></div>
-          <div class="meta"><b>包名</b><span><code>comboscope</code></span></div>
+          <div class="meta"><b>包名</b><span><code>routepilot</code></span></div>
           <div class="meta"><b>主指标</b><span>WAPE</span></div>
           <div class="meta"><b>运行形态</b><span>单轮 trial / 多轮 loop</span></div>
         </div>
@@ -600,7 +600,7 @@
                   <p>串行入口，目前复用单轮 graph，保留 CLI 兼容与扩展点。</p>
                 </div>
                 <div class="module">
-                  <h3><code>ComboScopeState</code></h3>
+                  <h3><code>RoutePilotState</code></h3>
                   <p>节点间状态，只传 artifact path、小对象和状态标记。</p>
                 </div>
               </div>
@@ -729,7 +729,7 @@ END</pre>
             <div class="panel-body">
               <h3>状态传递原则</h3>
               <p>
-                <code>ComboScopeState</code> 中只保存路径、小型 dict 和状态标记。
+                <code>RoutePilotState</code> 中只保存路径、小型 dict 和状态标记。
                 大 CSV、DataFrame、完整 prompt 不进入 state，避免图状态膨胀和不可追踪。
               </p>
               <div class="tag-row">
@@ -774,43 +774,43 @@ END</pre>
                   <td><code>run_history.csv</code>, <code>best_trial_review.md</code></td>
                 </tr>
                 <tr>
-                  <td><code>comboscope/orchestrators/langgraph_flow.py</code></td>
+                  <td><code>routepilot/orchestrators/langgraph_flow.py</code></td>
                   <td>编排</td>
                   <td>定义主图、节点函数、artifact 路径和各阶段串联。</td>
                   <td>完整 trial 流程</td>
                 </tr>
                 <tr>
-                  <td><code>comboscope/agents/evaluation_hypothesis_agent.py</code></td>
+                  <td><code>routepilot/agents/evaluation_hypothesis_agent.py</code></td>
                   <td>Agent1</td>
                   <td>基于证据生成诊断、候选实验和计划。</td>
                   <td><code>feature_hypothesis.yaml</code>, <code>experiment_plan.yaml</code></td>
                 </tr>
                 <tr>
-                  <td><code>comboscope/core/real_experiment_runner.py</code></td>
+                  <td><code>routepilot/core/real_experiment_runner.py</code></td>
                   <td>Core</td>
                   <td>复制真实入口和 Python 依赖，生成 trial wrapper 并运行。</td>
                   <td><code>agent2/code/train.py</code>, <code>run_status.json</code></td>
                 </tr>
                 <tr>
-                  <td><code>comboscope/core/compare.py</code></td>
+                  <td><code>routepilot/core/compare.py</code></td>
                   <td>Core</td>
                   <td>对比新旧指标，执行确定性 keep/rollback 规则。</td>
                   <td><code>metric_comparison.json</code>, <code>review_result.json</code></td>
                 </tr>
                 <tr>
-                  <td><code>comboscope/runtime/skill_runner.py</code></td>
+                  <td><code>routepilot/runtime/skill_runner.py</code></td>
                   <td>Runtime</td>
                   <td>封装 forecast skills 的脚本调用。</td>
                   <td>扫描、指标、场景、badcase 产物</td>
                 </tr>
                 <tr>
-                  <td><code>comboscope/runtime/llm_client.py</code></td>
+                  <td><code>routepilot/runtime/llm_client.py</code></td>
                   <td>Runtime</td>
                   <td>统一 LLM 请求，处理 provider、API 模式、重试和用量。</td>
                   <td><code>llm_calls.jsonl</code>, <code>token_usage.json</code></td>
                 </tr>
                 <tr>
-                  <td><code>comboscope/runtime/trial_archive.py</code></td>
+                  <td><code>routepilot/runtime/trial_archive.py</code></td>
                   <td>Runtime</td>
                   <td>压实 trial 目录并生成 archive 分组证据包。</td>
                   <td><code>archive/archive_manifest.json</code></td>
@@ -981,7 +981,7 @@ END</pre>
 ├── main.py                         # 单轮实验 CLI
 ├── loop.py                         # 多轮 trial loop
 ├── program.md                      # 项目规则和安全边界
-├── comboscope/
+├── routepilot/
 │   ├── agents/
 │   │   ├── evaluation_hypothesis_agent.py
 │   │   ├── llm_decision_agent.py
@@ -1027,7 +1027,7 @@ END</pre>
       </section>
 
       <div class="footer">
-        Generated for ForecastOps Agent / ComboScope. Open this file directly in a browser.
+        Generated for RoutePilot. Open this file directly in a browser.
       </div>
     </main>
   </div>

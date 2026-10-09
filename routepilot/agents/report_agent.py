@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from comboscope.core.reports import build_final_report_context, write_final_report as write_decision_report
+from routepilot.core.reports import build_final_report_context, write_final_report as write_decision_report
 
 
 def write_experiment_review(

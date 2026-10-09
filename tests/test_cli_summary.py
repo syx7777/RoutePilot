@@ -33,7 +33,7 @@ def test_main_run_fails_fast_without_llm(monkeypatch, capsys, fixture_exp: Path,
     assert main.main() == 1
 
     captured = capsys.readouterr().out
-    assert "ComboScope run failed" in captured
+    assert "RoutePilot run failed" in captured
     assert "SelectArtifacts" in captured
     assert "error_report:" in captured
     assert (output_dir / "error_report.md").exists()
@@ -62,7 +62,7 @@ def test_main_run_can_read_experiment_path_from_ask_before_llm_failure(monkeypat
     assert main.main() == 1
 
     captured = capsys.readouterr().out
-    assert "ComboScope run failed" in captured
+    assert "RoutePilot run failed" in captured
     assert "error_report:" in captured
     assert (output_dir / "error_report.md").exists()
 
@@ -121,7 +121,7 @@ def test_main_run_failure_prints_error_report(monkeypatch, capsys, fixture_exp: 
     assert main.main() == 1
 
     captured = capsys.readouterr().out
-    assert "ComboScope run failed" in captured
+    assert "RoutePilot run failed" in captured
     assert "error_report:" in captured
 
 

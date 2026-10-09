@@ -6,7 +6,7 @@ from typing import Any
 import yaml
 
 
-YAML_OUTPUT_CONTRACT_MARKER = "ComboScope YAML output contract"
+YAML_OUTPUT_CONTRACT_MARKER = "RoutePilot YAML output contract"
 
 YAML_OUTPUT_CONTRACT_RULES = [
     "Return exactly one YAML mapping as the whole response.",

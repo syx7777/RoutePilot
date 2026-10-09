@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from comboscope.runtime.ask_paths import resolve_experiment_dir
+from routepilot.runtime.ask_paths import resolve_experiment_dir
 
 
 def test_resolve_experiment_dir_uses_cli_path_first(tmp_path: Path) -> None:

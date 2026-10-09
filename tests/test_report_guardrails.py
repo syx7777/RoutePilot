@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from comboscope.core.reports import build_final_report_context, write_final_report
+from routepilot.core.reports import build_final_report_context, write_final_report
 
 
 def test_final_report_rollback_train_failed_is_decision_report(tmp_path: Path) -> None:
@@ -45,7 +45,7 @@ def test_final_report_rollback_train_failed_is_decision_report(tmp_path: Path) -
     write_final_report(context, output)
 
     text = output.read_text(encoding="utf-8")
-    assert "# ComboScope 实验验证结论报告" in text
+    assert "# RoutePilot 实验验证结论报告" in text
     assert "本轮 `festival_model_features` 实验无效" in text
     assert "当前最佳方案仍然是 baseline" in text
     assert "训练失败" in text

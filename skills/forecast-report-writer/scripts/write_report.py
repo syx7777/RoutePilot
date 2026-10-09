@@ -200,7 +200,7 @@ def build_template_report(context: dict[str, Any]) -> str:
             f"- Agent2 实际修改文件：{_agent2_modified_files_text(context)}",
             f"- 特征应用审计：{_feature_application_audit_text(context)}",
             f"- 执行方式：{_execution_method_text(plan, run_status)}",
-            f"- 评估入口/指标函数：评估由 ComboScope skills 读取标准化 prediction/actual 后确定性计算；指标函数线索：{_format_list(code.get('metric_functions', []), 8)}",
+            f"- 评估入口/指标函数：评估由 RoutePilot skills 读取标准化 prediction/actual 后确定性计算；指标函数线索：{_format_list(code.get('metric_functions', []), 8)}",
             "",
             "## 6. 评测数据可用性",
             f"- prediction 路径：{artifact.get('prediction_path')}",
@@ -278,7 +278,7 @@ def _advisor_suggestions(context: dict[str, Any]) -> list[dict[str, str]]:
     advisor_path = Path(__file__).resolve().parents[2] / "forecast-optimization-advisor" / "scripts" / "write_suggestions.py"
     if not advisor_path.exists():
         return []
-    spec = importlib.util.spec_from_file_location("comboscope_forecast_optimization_advisor", advisor_path)
+    spec = importlib.util.spec_from_file_location("routepilot_forecast_optimization_advisor", advisor_path)
     if not spec or not spec.loader:
         return []
     module = importlib.util.module_from_spec(spec)

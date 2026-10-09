@@ -8,9 +8,9 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
-from comboscope.core.schemas import ExperimentPlan, FeatureHypothesis
-from comboscope.runtime.artifact_adapter import read_csv_records, write_json
-from comboscope.runtime.yaml_utils import append_yaml_output_contract, safe_load_yaml_mapping, strip_code_fence
+from routepilot.core.schemas import ExperimentPlan, FeatureHypothesis
+from routepilot.runtime.artifact_adapter import read_csv_records, write_json
+from routepilot.runtime.yaml_utils import append_yaml_output_contract, safe_load_yaml_mapping, strip_code_fence
 
 
 FEATURE_HYPOTHESIS_REQUIRED_KEYS = {"target_problem", "hypothesis", "evidence", "proposed_features"}

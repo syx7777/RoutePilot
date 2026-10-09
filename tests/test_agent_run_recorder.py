@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from comboscope.runtime.agent_run_recorder import AgentRunRecorder
-from comboscope.runtime.doubao_client import LLMCallResult
+from routepilot.runtime.agent_run_recorder import AgentRunRecorder
+from routepilot.runtime.doubao_client import LLMCallResult
 
 
 def test_agent_run_recorder_writes_status_timeline_tokens_and_index(tmp_path: Path) -> None:

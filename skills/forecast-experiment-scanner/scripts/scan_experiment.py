@@ -14,7 +14,7 @@ DATA_EXTS = {".csv", ".parquet", ".xlsx"}
 ENTRYPOINT_NAMES = {"main.py", "train.py", "run.py", "evaluate.py", "eval.py", "run_train.py"}
 IGNORED_DIR_PARTS = {
     ".git",
-    ".comboscope_backups",
+    ".routepilot_backups",
     ".hg",
     ".mypy_cache",
     ".pytest_cache",

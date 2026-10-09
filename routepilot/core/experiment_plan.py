@@ -7,8 +7,8 @@ from typing import Any
 
 import yaml
 
-from comboscope.core.schemas import ExperimentPlan, is_editable_file_allowed
-from comboscope.core.train_policy import update_train_policy
+from routepilot.core.schemas import ExperimentPlan, is_editable_file_allowed
+from routepilot.core.train_policy import update_train_policy
 
 
 def _load_plan(path: str | Path) -> ExperimentPlan:
@@ -17,7 +17,7 @@ def _load_plan(path: str | Path) -> ExperimentPlan:
 
 
 def _backup(project_dir: Path, rel_paths: list[str]) -> dict[str, Any]:
-    backup_dir = project_dir / ".comboscope_backups"
+    backup_dir = project_dir / ".routepilot_backups"
     backup_dir.mkdir(parents=True, exist_ok=True)
     files: list[dict[str, str]] = []
     for rel in rel_paths:

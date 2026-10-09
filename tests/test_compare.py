@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from comboscope.core.compare import compare_metrics
+from routepilot.core.compare import compare_metrics
 
 
 def test_compare_metrics_keeps_when_wape_improves_and_bias_is_stable() -> None:

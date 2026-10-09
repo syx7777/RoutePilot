@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from comboscope.runtime.skills_manager import SkillsManager
+from routepilot.runtime.skills_manager import SkillsManager
 
 
 class SkillRunner:

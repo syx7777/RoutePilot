@@ -8,13 +8,13 @@ from typing import Any
 
 import yaml
 
-from comboscope.agents.llm_decision_agent import select_best_trial, write_best_trial_review
-from comboscope.orchestrators.langgraph_flow import run_once
-from comboscope.orchestrators.sequential_flow import run_once_sequential
-from comboscope.runtime.agent_run_recorder import AgentRunRecorder
-from comboscope.runtime.llm_client import create_llm_client
-from comboscope.runtime.ask_paths import resolve_experiment_dir
-from comboscope.runtime.cli_summary import print_loop_summary, print_trial_summary
+from routepilot.agents.llm_decision_agent import select_best_trial, write_best_trial_review
+from routepilot.orchestrators.langgraph_flow import run_once
+from routepilot.orchestrators.sequential_flow import run_once_sequential
+from routepilot.runtime.agent_run_recorder import AgentRunRecorder
+from routepilot.runtime.llm_client import create_llm_client
+from routepilot.runtime.ask_paths import resolve_experiment_dir
+from routepilot.runtime.cli_summary import print_loop_summary, print_trial_summary
 
 
 def run_loop(
@@ -144,7 +144,7 @@ def _trial_artifact(trial_dir: Path, filename: str) -> Path:
 def _write_loop_final_report(output: Path, history: list[dict[str, Any]], best_review: dict[str, Any]) -> None:
     best_report = next((Path(row["final_report"]) for row in history if row["trial_id"] == best_review.get("best_trial_id")), None)
     lines = [
-        "# ComboScope Loop Final Report",
+        "# RoutePilot Loop Final Report",
         "",
         "## 最佳方案",
         f"- 最佳 trial：{best_review.get('best_trial_id')}",
@@ -166,7 +166,7 @@ def _write_loop_final_report(output: Path, history: list[dict[str, Any]], best_r
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run ComboScope multi-trial loop.")
+    parser = argparse.ArgumentParser(description="Run RoutePilot multi-trial loop.")
     parser.add_argument("--experiment")
     parser.add_argument("--ask", required=True)
     parser.add_argument("--max-trials", type=int, default=3)

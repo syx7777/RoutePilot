@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from comboscope.core.experiment_plan import apply_experiment_plan
+from routepilot.core.experiment_plan import apply_experiment_plan
 
 
 def test_apply_plan_updates_allowed_config_and_train_policy(fixture_exp: Path, tmp_path: Path) -> None:

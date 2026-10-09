@@ -1,7 +1,7 @@
 [project]
-name = "comboscope"
+name = "routepilot"
 version = "0.2.0"
-description = "Combo sales forecast diagnosis and experiment validation agents."
+description = "RoutePilot: plug-and-play multi-agent auto-optimization and inference acceleration framework."
 requires-python = ">=3.11"
 dependencies = [
   "langchain>=1.3.7",
@@ -25,4 +25,4 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["comboscope*"]
+include = ["routepilot*"]

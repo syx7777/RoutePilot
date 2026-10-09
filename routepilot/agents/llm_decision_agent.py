@@ -5,7 +5,7 @@ from typing import Any
 
 import yaml
 
-from comboscope.runtime.yaml_utils import append_yaml_output_contract, safe_load_yaml_mapping
+from routepilot.runtime.yaml_utils import append_yaml_output_contract, safe_load_yaml_mapping
 
 
 SELECT_BEST_TRIAL_TIMEOUT = (10, 600)
@@ -30,7 +30,7 @@ def select_best_trial(
         sort_keys=False,
     )
     system_prompt, prompt = append_yaml_output_contract(
-        "你是 ComboScope 多轮实验汇总器。只能根据已完成 trial 的结构化结果选择最佳 trial，不要重新定义指标口径。只返回 YAML。",
+        "你是 RoutePilot 多轮实验汇总器。只能根据已完成 trial 的结构化结果选择最佳 trial，不要重新定义指标口径。只返回 YAML。",
         prompt,
     )
     try:

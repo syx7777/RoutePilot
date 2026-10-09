@@ -15,8 +15,8 @@ from typing import Any
 
 import yaml
 
-from comboscope.runtime.artifact_contract import standardize_from_contract, write_artifact_contract
-from comboscope.runtime.yaml_utils import append_yaml_output_contract, clean_llm_yaml_text, safe_load_yaml_mapping, strip_code_fence
+from routepilot.runtime.artifact_contract import standardize_from_contract, write_artifact_contract
+from routepilot.runtime.yaml_utils import append_yaml_output_contract, clean_llm_yaml_text, safe_load_yaml_mapping, strip_code_fence
 
 
 AGENT2_CODEGEN_TIMEOUT = (30, 600)
@@ -951,7 +951,7 @@ def _repair_trial_code_after_train_command_failure(
 
     result_info = _call_agent2_llm(
         llm_client,
-        "你是 ComboScope Agent2。训练命令与 copied train.py 的 argparse 契约不匹配。请只返回修复后的 YAML。",
+        "你是 RoutePilot Agent2。训练命令与 copied train.py 的 argparse 契约不匹配。请只返回修复后的 YAML。",
         _agent2_train_command_repair_prompt(
             plan=plan,
             execution_plan=execution_plan,
@@ -1358,7 +1358,7 @@ def _repair_trial_code_after_backtest_failure(
     )
     result_info = _call_agent2_llm(
         llm_client,
-        "你是 ComboScope Agent2。上一次代码已通过静态校验但回测失败。请只返回修复后的完整 YAML files 包。",
+        "你是 RoutePilot Agent2。上一次代码已通过静态校验但回测失败。请只返回修复后的完整 YAML files 包。",
         prompt,
         step="RepairBacktestFailure",
         attempt_index=repair_attempt_index,
@@ -1502,7 +1502,7 @@ def _latest_agent2_package_content(raw_output_dir: Path) -> str:
 def _train_log_header(command: list[str], manifest: dict[str, Any], real_outputs: Path) -> str:
     return "\n".join(
         [
-            "ComboScope Agent2 train context",
+            "RoutePilot Agent2 train context",
             f"train_command: {command}",
             f"input_files: {manifest.get('copied_files', {})}",
             f"missing_input_files: {manifest.get('missing_input_files', [])}",
@@ -1946,7 +1946,7 @@ def _apply_llm_logged_eval_time_overrides(
     source_text = wrapper.read_text(encoding="utf-8", errors="ignore") if wrapper.exists() else ""
     result = _call_agent2_llm(
         llm_client,
-        "你是 ComboScope 的日志评测时间判定器。只从日志中判定真实评测/回测窗口，返回 YAML。",
+        "你是 RoutePilot 的日志评测时间判定器。只从日志中判定真实评测/回测窗口，返回 YAML。",
         _logged_eval_time_prompt(
             log_text=log_text,
             log_path=log_path,
@@ -4794,11 +4794,11 @@ def _metadata_or_argparse_line(line: str) -> bool:
     if not line or line.startswith("#"):
         return True
     metadata_markers = [
-        "COMBOSCOPE_ARG_OVERRIDES",
-        "COMBOSCOPE_FEATURE_CHANGES",
-        "COMBOSCOPE_ORIGINAL_EXPERIMENT_DIR",
-        "COMBOSCOPE_ORIGINAL_PYTHON_PACKAGE_DIR",
-        "_comboscope",
+        "ROUTEPILOT_ARG_OVERRIDES",
+        "ROUTEPILOT_FEATURE_CHANGES",
+        "ROUTEPILOT_ORIGINAL_EXPERIMENT_DIR",
+        "ROUTEPILOT_ORIGINAL_PYTHON_PACKAGE_DIR",
+        "_routepilot",
         "setattr(args, key, value)",
         "args.",
         "add_argument(",
@@ -5134,7 +5134,7 @@ def _modify_trial_code_with_agent2(
         )
         result_info = _call_agent2_llm(
             llm_client,
-            "你是 ComboScope Agent2。请只返回 YAML edits 包，不要 Markdown，不要解释。",
+            "你是 RoutePilot Agent2。请只返回 YAML edits 包，不要 Markdown，不要解释。",
             prompt,
             step="GenerateCodeEdits",
             attempt_index=attempt_index,
@@ -5187,7 +5187,7 @@ def _modify_trial_code_with_agent2(
             )
             repair_info = _call_agent2_llm(
                 llm_client,
-                "你是 ComboScope Agent2。请只返回修复后的 YAML edits 包。",
+                "你是 RoutePilot Agent2。请只返回修复后的 YAML edits 包。",
                 repair_prompt,
                 step="RepairCodeEdits",
                 attempt_index=repair_attempt_index,
@@ -6066,7 +6066,7 @@ def _select_agent2_edit_tasks_with_llm(
     prompt = _agent2_select_edit_task_prompt(plan, execution_plan, locator, code_index)
     result_info = _call_agent2_llm(
         llm_client,
-        "你是 ComboScope Agent2。请只基于本地 code_index 选择编辑目标，并只返回 YAML。",
+        "你是 RoutePilot Agent2。请只基于本地 code_index 选择编辑目标，并只返回 YAML。",
         prompt,
         step="SelectEditTask",
         attempt_index=attempt_index,
@@ -6237,7 +6237,7 @@ def _agent2_slice_codegen_prompt(
             "Do not map natural-language recommendations to broad function rewrites; make the smallest executable edit that implements the requested behavior.",
             "Do not rewrite the full training pipeline.",
             "Do not modify original experiment source.",
-            "The requested feature must be visible in executable code, not only COMBOSCOPE metadata.",
+            "The requested feature must be visible in executable code, not only ROUTEPILOT metadata.",
             "Feature columns should be assigned with a literal/audit-traceable name, e.g. feature_col = f'{feature_name}_...' then df[feature_col] = ...",
             "If construction names explicit output columns, those exact columns must be constructed in reachable code and included before feature_cols/model input is built; similar old columns are not sufficient evidence.",
             "If adding a helper, ensure an existing training/feature path calls it.",
@@ -8331,10 +8331,10 @@ def _patch_trial_train_source(
             "if __name__ == \"__main__\":",
             "    setup_logger()",
             "    args = parse_args()",
-            "    for key, value in COMBOSCOPE_ARG_OVERRIDES.items():",
+            "    for key, value in ROUTEPILOT_ARG_OVERRIDES.items():",
             "        if hasattr(args, key):",
             "            setattr(args, key, value)",
-            "    _comboscope_apply_cli_output_overrides(args)",
+            "    _routepilot_apply_cli_output_overrides(args)",
             "    run_online_pipeline(args)",
         ]
     )
@@ -8346,22 +8346,22 @@ def _patch_trial_train_source(
 def _trial_header(arg_overrides: dict[str, bool], plan: dict[str, Any], experiment: Path) -> str:
     return "\n".join(
         [
-            "# Generated by ComboScope Agent2 from the original experiment entrypoint.",
+            "# Generated by RoutePilot Agent2 from the original experiment entrypoint.",
             "# This trial copy is safe to edit; the original experiment source is not modified.",
-            "import sys as _comboscope_sys",
-            "from pathlib import Path as _ComboScopePath",
-            f"COMBOSCOPE_ORIGINAL_EXPERIMENT_DIR = _ComboScopePath({experiment.as_posix()!r})",
-            "COMBOSCOPE_ORIGINAL_PYTHON_PACKAGE_DIR = COMBOSCOPE_ORIGINAL_EXPERIMENT_DIR / '.python_packages'",
-            "for _comboscope_path in [COMBOSCOPE_ORIGINAL_PYTHON_PACKAGE_DIR, COMBOSCOPE_ORIGINAL_EXPERIMENT_DIR]:",
-            "    if _comboscope_path.exists() and _comboscope_path.as_posix() not in _comboscope_sys.path:",
-            "        _comboscope_sys.path.insert(0, _comboscope_path.as_posix())",
-            f"COMBOSCOPE_ARG_OVERRIDES = {arg_overrides!r}",
-            f"COMBOSCOPE_FEATURE_CHANGES = {plan.get('changes', [])!r}",
-            "def _comboscope_cli_items():",
+            "import sys as _routepilot_sys",
+            "from pathlib import Path as _RoutePilotPath",
+            f"ROUTEPILOT_ORIGINAL_EXPERIMENT_DIR = _RoutePilotPath({experiment.as_posix()!r})",
+            "ROUTEPILOT_ORIGINAL_PYTHON_PACKAGE_DIR = ROUTEPILOT_ORIGINAL_EXPERIMENT_DIR / '.python_packages'",
+            "for _routepilot_path in [ROUTEPILOT_ORIGINAL_PYTHON_PACKAGE_DIR, ROUTEPILOT_ORIGINAL_EXPERIMENT_DIR]:",
+            "    if _routepilot_path.exists() and _routepilot_path.as_posix() not in _routepilot_sys.path:",
+            "        _routepilot_sys.path.insert(0, _routepilot_path.as_posix())",
+            f"ROUTEPILOT_ARG_OVERRIDES = {arg_overrides!r}",
+            f"ROUTEPILOT_FEATURE_CHANGES = {plan.get('changes', [])!r}",
+            "def _routepilot_cli_items():",
             "    _items = {}",
             "    _index = 1",
-            "    while _index < len(_comboscope_sys.argv):",
-            "        _item = _comboscope_sys.argv[_index]",
+            "    while _index < len(_routepilot_sys.argv):",
+            "        _item = _routepilot_sys.argv[_index]",
             "        if not str(_item).startswith('--'):",
             "            _index += 1",
             "            continue",
@@ -8369,8 +8369,8 @@ def _trial_header(arg_overrides: dict[str, bool], plan: dict[str, Any], experime
             "        _name = _flag[2:].replace('-', '_')",
             "        _index += 1",
             "        _values = []",
-            "        while _index < len(_comboscope_sys.argv) and not str(_comboscope_sys.argv[_index]).startswith('--'):",
-            "            _values.append(_comboscope_sys.argv[_index])",
+            "        while _index < len(_routepilot_sys.argv) and not str(_routepilot_sys.argv[_index]).startswith('--'):",
+            "            _values.append(_routepilot_sys.argv[_index])",
             "            _index += 1",
             "        if _flag.startswith('--no-'):",
             "            _items[_flag[5:].replace('-', '_')] = False",
@@ -8381,7 +8381,7 @@ def _trial_header(arg_overrides: dict[str, bool], plan: dict[str, Any], experime
             "        else:",
             "            _items[_name] = _values",
             "    return _items",
-            "def _comboscope_cast_cli_value(current, value):",
+            "def _routepilot_cast_cli_value(current, value):",
             "    if isinstance(current, bool):",
             "        if isinstance(value, bool):",
             "            return value",
@@ -8402,10 +8402,10 @@ def _trial_header(arg_overrides: dict[str, bool], plan: dict[str, Any], experime
             "        return type(current)(value)",
             "    except Exception:",
             "        return value",
-            "def _comboscope_apply_cli_output_overrides(args):",
-            "    for _name, _value in _comboscope_cli_items().items():",
+            "def _routepilot_apply_cli_output_overrides(args):",
+            "    for _name, _value in _routepilot_cli_items().items():",
             "        if hasattr(args, _name):",
-            "            setattr(args, _name, _comboscope_cast_cli_value(getattr(args, _name), _value))",
+            "            setattr(args, _name, _routepilot_cast_cli_value(getattr(args, _name), _value))",
             "    return args",
             "",
         ]
@@ -8438,7 +8438,7 @@ def _insert_trial_header(source_text: str, header: str) -> str:
 
 def _insert_output_override_hook(source_text: str) -> str:
     marker = "    output_dir = Path(args.output_dir)"
-    hook = "    _comboscope_apply_cli_output_overrides(args)\n" + marker
+    hook = "    _routepilot_apply_cli_output_overrides(args)\n" + marker
     if marker in source_text and hook not in source_text:
         return source_text.replace(marker, hook, 1)
     return source_text

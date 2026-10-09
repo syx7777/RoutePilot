@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 
-START = "# COMBOSCOPE_POLICY_START"
-END = "# COMBOSCOPE_POLICY_END"
+START = "# ROUTEPILOT_POLICY_START"
+END = "# ROUTEPILOT_POLICY_END"
 
 
 def render_policy(feature_names: list[str]) -> str:

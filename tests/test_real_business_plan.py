@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import yaml
 
-from comboscope.agents.evaluation_hypothesis_agent import generate_real_experiment_plan, generate_real_feature_hypothesis
-from comboscope.runtime.doubao_client import LLMCallResult
+from routepilot.agents.evaluation_hypothesis_agent import generate_real_experiment_plan, generate_real_feature_hypothesis
+from routepilot.runtime.doubao_client import LLMCallResult
 
 
 class FakeLLM:

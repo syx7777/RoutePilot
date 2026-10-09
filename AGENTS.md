@@ -1,12 +1,12 @@
 # AGENTS.md
 
-## ComboScope v0.2
+## RoutePilot v0.2
 
 执行时遵循 `program.md`。
 
 关键边界：
 
-- ComboScope 面向通用预测实验，不在 agent/skills 层写死套餐、外卖、单品或固定模型。
+- RoutePilot 面向通用预测实验，不在 agent/skills 层写死套餐、外卖、单品或固定模型。
 - 评测 Agent 工具来自 `skills/`，不要在 `core/` 下新增评测工具。
 - `core/` 只处理实验计划、受控修改、训练评测调用、指标对比、trial wrapper 和 rollback。
 - LangGraph state 只传 artifact path、小对象和状态标记。

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from comboscope.agents.report_agent import write_experiment_review, write_final_report
+from routepilot.agents.report_agent import write_experiment_review, write_final_report
 
 
 def test_report_agent_uses_chinese_reason_text(tmp_path: Path) -> None:
@@ -56,7 +56,7 @@ def test_report_agent_uses_chinese_reason_text(tmp_path: Path) -> None:
     )
 
     text = final_report.read_text(encoding="utf-8")
-    assert "ComboScope 实验验证结论报告" in text
+    assert "RoutePilot 实验验证结论报告" in text
     assert "本轮 `combo_rolling_7d_mean` 实验有效" in text
     assert "当前最佳方案切换为修改后方案" in text
     assert "wape improved enough" not in text

@@ -7,11 +7,11 @@ from pathlib import Path
 import yaml
 
 
-# COMBOSCOPE_POLICY_START
+# ROUTEPILOT_POLICY_START
 ENABLED_FEATURES = [
     "entity_rolling_7d_mean",
 ]
-# COMBOSCOPE_POLICY_END
+# ROUTEPILOT_POLICY_END
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:

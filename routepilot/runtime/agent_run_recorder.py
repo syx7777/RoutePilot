@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-from comboscope.runtime.doubao_client import LLMCallResult
+from routepilot.runtime.doubao_client import LLMCallResult
 
 
 class AgentRunRecorder:
@@ -82,7 +82,7 @@ class AgentRunRecorder:
 
     def write_artifact_index(self) -> None:
         lines = [
-            "# ComboScope Artifact Index",
+            "# RoutePilot Artifact Index",
             "",
             "## Agent1 结果",
         ]
@@ -170,7 +170,7 @@ class AgentRunRecorder:
         self.error_md_path.write_text(
             "\n".join(
                 [
-                    "# ComboScope Error Report",
+                    "# RoutePilot Error Report",
                     "",
                     "## 需要人工介入",
                     f"- Agent: {agent}",

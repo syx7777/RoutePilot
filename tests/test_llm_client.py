@@ -4,7 +4,7 @@ import importlib
 
 import requests
 
-from comboscope.runtime.llm_client import LLMClient, create_llm_client
+from routepilot.runtime.llm_client import LLMClient, create_llm_client
 
 
 class FakeResponse:
@@ -121,7 +121,7 @@ def test_create_llm_client_uses_deepseek_provider_env(monkeypatch) -> None:
 
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
     monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     client = create_llm_client(provider="deepseek")
     result = client.complete_with_usage("system", "hello", agent="Agent1", step="Plan")
@@ -148,9 +148,9 @@ def test_llm_client_retries_proxy_error_and_records_attempts(monkeypatch) -> Non
 
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
     monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
-    monkeypatch.setenv("COMBOSCOPE_LLM_RETRIES", "3")
-    monkeypatch.setenv("COMBOSCOPE_LLM_RETRY_BACKOFF_SECONDS", "0")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setenv("ROUTEPILOT_LLM_RETRIES", "3")
+    monkeypatch.setenv("ROUTEPILOT_LLM_RETRY_BACKOFF_SECONDS", "0")
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     client = create_llm_client(provider="deepseek")
     result = client.complete_with_usage("system", "hello", agent="Agent2", step="GenerateCodeEdits")
@@ -174,9 +174,9 @@ def test_llm_client_retries_transient_http_status(monkeypatch) -> None:
 
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
     monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
-    monkeypatch.setenv("COMBOSCOPE_LLM_RETRIES", "2")
-    monkeypatch.setenv("COMBOSCOPE_LLM_RETRY_BACKOFF_SECONDS", "0")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setenv("ROUTEPILOT_LLM_RETRIES", "2")
+    monkeypatch.setenv("ROUTEPILOT_LLM_RETRY_BACKOFF_SECONDS", "0")
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     result = create_llm_client(provider="deepseek").complete_with_usage("", "hello")
 
@@ -195,9 +195,9 @@ def test_llm_client_does_not_retry_auth_error(monkeypatch) -> None:
 
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
     monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
-    monkeypatch.setenv("COMBOSCOPE_LLM_RETRIES", "3")
-    monkeypatch.setenv("COMBOSCOPE_LLM_RETRY_BACKOFF_SECONDS", "0")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setenv("ROUTEPILOT_LLM_RETRIES", "3")
+    monkeypatch.setenv("ROUTEPILOT_LLM_RETRY_BACKOFF_SECONDS", "0")
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     result = create_llm_client(provider="deepseek").complete_with_usage("", "hello")
 
@@ -229,7 +229,7 @@ def test_deepseek_v4_pro_enables_thinking_payload(monkeypatch) -> None:
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
     monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
     monkeypatch.setenv("DEEPSEEK_REASONING_EFFORT", "high")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     client = create_llm_client(provider="deepseek")
     result = client.complete_with_usage("", "hello")
@@ -251,7 +251,7 @@ def test_llm_client_streams_openai_compatible_chunks(monkeypatch) -> None:
 
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
     monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     client = create_llm_client(provider="deepseek")
     result = client.complete_with_usage("system", "hello", agent="Agent2", step="GenerateCodeEdits", timeout=(30, 900), stream=True)
@@ -269,7 +269,7 @@ def test_llm_client_streams_utf8_bytes_without_mojibake(monkeypatch) -> None:
 
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
     monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     result = create_llm_client(provider="deepseek").complete_with_usage("system", "hello", stream=True)
 
@@ -286,7 +286,7 @@ def test_create_llm_client_defaults_non_gpt_openai_compatible_provider_to_chat(m
     monkeypatch.setenv("LLM_API_KEY", "generic-key")
     monkeypatch.setenv("LLM_BASE_URL", "https://llm.example.com/v1")
     monkeypatch.setenv("LLM_MODEL", "vendor-model")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     client = create_llm_client(provider="openai-compatible")
     result = client.complete_with_usage("", "hello")
@@ -309,8 +309,8 @@ def test_glm_model_uses_chat_completions_by_default(monkeypatch) -> None:
 
     monkeypatch.setenv("LLM_API_KEY", "generic-key")
     monkeypatch.setenv("LLM_BASE_URL", "https://llm.example.com/v1")
-    monkeypatch.setenv("COMBOSCOPE_LLM_PROVIDER", "openai-compatible")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setenv("ROUTEPILOT_LLM_PROVIDER", "openai-compatible")
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     client = create_llm_client(model="glm-5.1")
     result = client.complete_with_usage("system", "hello")
@@ -332,8 +332,8 @@ def test_openai_compatible_provider_can_force_chat_completions(monkeypatch) -> N
     monkeypatch.setenv("LLM_API_KEY", "generic-key")
     monkeypatch.setenv("LLM_BASE_URL", "https://llm.example.com/v1")
     monkeypatch.setenv("LLM_MODEL", "vendor-model")
-    monkeypatch.setenv("COMBOSCOPE_LLM_API_MODE", "chat")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setenv("ROUTEPILOT_LLM_API_MODE", "chat")
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     client = create_llm_client(provider="openai-compatible")
     result = client.complete_with_usage("system", "hello")
@@ -356,7 +356,7 @@ def test_codex_model_uses_responses_api_by_default(monkeypatch) -> None:
 
     monkeypatch.setenv("LLM_API_KEY", "generic-key")
     monkeypatch.setenv("LLM_BASE_URL", "https://llm.example.com/v1")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     client = create_llm_client(model="gpt-5.3-codex")
     result = client.complete_with_usage("system", "hello", max_tokens=32)
@@ -377,7 +377,7 @@ def test_responses_api_empty_content_is_failure_with_raw_response(monkeypatch) -
 
     monkeypatch.setenv("LLM_API_KEY", "generic-key")
     monkeypatch.setenv("LLM_BASE_URL", "https://llm.example.com/v1")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     result = create_llm_client(model="gpt-5.3-codex").complete_with_usage("system", "hello")
 
@@ -403,8 +403,8 @@ def test_create_llm_client_uses_temperature_env(monkeypatch) -> None:
     monkeypatch.setenv("LLM_API_KEY", "generic-key")
     monkeypatch.setenv("LLM_BASE_URL", "https://llm.example.com/v1")
     monkeypatch.setenv("LLM_MODEL", "vendor-model")
-    monkeypatch.setenv("COMBOSCOPE_LLM_TEMPERATURE", "1")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setenv("ROUTEPILOT_LLM_TEMPERATURE", "1")
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     result = create_llm_client(provider="openai-compatible").complete_with_usage("", "hello")
 
@@ -421,7 +421,7 @@ def test_responses_api_streams_chunks(monkeypatch) -> None:
 
     monkeypatch.setenv("LLM_API_KEY", "generic-key")
     monkeypatch.setenv("LLM_BASE_URL", "https://llm.example.com/v1")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     result = create_llm_client(model="gpt-5.3-codex").complete_with_usage("system", "hello", stream=True)
 
@@ -439,7 +439,7 @@ def test_responses_api_stream_uses_done_text_as_fallback(monkeypatch) -> None:
 
     monkeypatch.setenv("LLM_API_KEY", "generic-key")
     monkeypatch.setenv("LLM_BASE_URL", "https://llm.example.com/v1")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     result = create_llm_client(model="gpt-5.3-codex").complete_with_usage("system", "hello", stream=True)
 
@@ -479,7 +479,7 @@ def test_llm_client_loads_dotenv_without_overriding_existing_env(monkeypatch, tm
     monkeypatch.delenv("DEEPSEEK_REASONING_EFFORT", raising=False)
     monkeypatch.setenv("DOUBAO_MODEL", "from-shell")
 
-    import comboscope.runtime.llm_client as llm_client
+    import routepilot.runtime.llm_client as llm_client
 
     importlib.reload(llm_client)
 

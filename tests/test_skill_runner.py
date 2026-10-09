@@ -5,9 +5,9 @@ import importlib.util
 import sys
 from pathlib import Path
 
-from comboscope.runtime.artifact_adapter import metrics_csv_to_json
-from comboscope.runtime.skill_runner import SkillRunner
-from comboscope.runtime.skills_manager import SkillsManager
+from routepilot.runtime.artifact_adapter import metrics_csv_to_json
+from routepilot.runtime.skill_runner import SkillRunner
+from routepilot.runtime.skills_manager import SkillsManager
 
 
 def test_skill_runner_generates_metric_and_badcase_artifacts(repo_root: Path, fixture_exp: Path, tmp_path: Path) -> None:

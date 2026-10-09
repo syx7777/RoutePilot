@@ -87,7 +87,7 @@ class LLMClient:
                 estimated=False,
                 available=False,
                 success=False,
-                summary=f"LLM unavailable for provider={self.provider}; ComboScope will fail fast for this LLM-led step.",
+                summary=f"LLM unavailable for provider={self.provider}; RoutePilot will fail fast for this LLM-led step.",
                 timeout_seconds=request_timeout,
                 streaming_used=False,
                 attempt_count=0,
@@ -238,7 +238,7 @@ class DoubaoClient(LLMClient):
 
 def create_llm_client(provider: str | None = None, model: str | None = None) -> LLMClient:
     _load_dotenv_once()
-    resolved_provider = provider or _provider_from_model(model) or os.environ.get("COMBOSCOPE_LLM_PROVIDER") or "doubao"
+    resolved_provider = provider or _provider_from_model(model) or os.environ.get("ROUTEPILOT_LLM_PROVIDER") or "doubao"
     return LLMClient(provider=resolved_provider, model=None if model == resolved_provider else model)
 
 
@@ -271,9 +271,9 @@ def _resolve_model(provider: str, model: str | None) -> str | None:
 def _resolve_api_mode(provider: str, model: str | None, api_mode: str | None = None) -> str:
     configured = (
         _normalize_api_mode(api_mode)
-        or _normalize_api_mode(os.environ.get("COMBOSCOPE_LLM_API_MODE"))
+        or _normalize_api_mode(os.environ.get("ROUTEPILOT_LLM_API_MODE"))
         or _normalize_api_mode(_env_value(provider, "API_MODE"))
-        or _normalize_api_mode(os.environ.get("COMBOSCOPE_LLM_API"))
+        or _normalize_api_mode(os.environ.get("ROUTEPILOT_LLM_API"))
         or _normalize_api_mode(_env_value(provider, "API"))
     )
     if configured:
@@ -385,12 +385,12 @@ def _deepseek_thinking_enabled(provider: str, model: str | None) -> bool:
 
 
 def _llm_retry_limit() -> int:
-    return max(0, _env_int("COMBOSCOPE_LLM_RETRIES", 3))
+    return max(0, _env_int("ROUTEPILOT_LLM_RETRIES", 3))
 
 
 def _llm_retry_backoff_seconds(attempt_index: int) -> float:
-    base = max(0.0, _env_float("COMBOSCOPE_LLM_RETRY_BACKOFF_SECONDS", 5.0))
-    max_backoff = max(0.0, _env_float("COMBOSCOPE_LLM_RETRY_MAX_BACKOFF_SECONDS", 60.0))
+    base = max(0.0, _env_float("ROUTEPILOT_LLM_RETRY_BACKOFF_SECONDS", 5.0))
+    max_backoff = max(0.0, _env_float("ROUTEPILOT_LLM_RETRY_MAX_BACKOFF_SECONDS", 60.0))
     delay = base * (2 ** max(0, attempt_index - 1))
     return min(delay, max_backoff)
 

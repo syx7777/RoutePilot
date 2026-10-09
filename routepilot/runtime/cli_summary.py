@@ -55,7 +55,7 @@ def print_run_summary(output_dir: str | Path) -> None:
     agent_status = _read_json(output / "agent_status.json")
     token_usage = _read_json(output / "token_usage.json")
 
-    print("ComboScope run completed")
+    print("RoutePilot run completed")
     print(f"output_dir: {output.as_posix()}")
     print(f"decision: {_value(review, 'decision')}")
     print(f"reason: {_translate_reason(_value(review, 'reason'))}")
@@ -121,7 +121,7 @@ def print_loop_summary(output_dir: str | Path, history: list[dict[str, Any]]) ->
     output = Path(output_dir)
     decisions = ", ".join(f"{row['trial_id']}={row['decision']}" for row in history) or "n/a"
     best = _read_json(output / "best_trial_review.json")
-    print("ComboScope loop completed")
+    print("RoutePilot loop completed")
     print(f"trials: {len(history)}")
     print(f"decisions: {decisions}")
     if best:

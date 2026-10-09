@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from comboscope.runtime.doubao_client import DoubaoClient
+from routepilot.runtime.doubao_client import DoubaoClient
 
 
 class FakeResponse:
@@ -32,7 +32,7 @@ def test_doubao_client_uses_ark_compatible_env(monkeypatch) -> None:
     monkeypatch.setenv("DOUBAO_API_KEY", "test-key")
     monkeypatch.setenv("DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
     monkeypatch.setenv("DOUBAO_MODEL", "test-endpoint")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     client = DoubaoClient()
 
@@ -56,7 +56,7 @@ def test_doubao_client_records_real_usage(monkeypatch) -> None:
     monkeypatch.setenv("DOUBAO_API_KEY", "test-key")
     monkeypatch.setenv("DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
     monkeypatch.setenv("DOUBAO_MODEL", "test-endpoint")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     result = DoubaoClient().complete_with_usage("system", "user prompt", agent="Agent1", step="Generate")
 
@@ -74,7 +74,7 @@ def test_doubao_client_estimates_usage_when_api_omits_usage(monkeypatch) -> None
     monkeypatch.setenv("DOUBAO_API_KEY", "test-key")
     monkeypatch.setenv("DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
     monkeypatch.setenv("DOUBAO_MODEL", "test-endpoint")
-    monkeypatch.setattr("comboscope.runtime.llm_client.requests.post", fake_post)
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
 
     result = DoubaoClient().complete_with_usage("", "hello world", agent="Agent2", step="Plan")
 

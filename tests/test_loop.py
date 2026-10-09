@@ -7,7 +7,7 @@ import yaml
 
 import loop
 from loop import run_loop
-from comboscope.runtime.doubao_client import LLMCallResult
+from routepilot.runtime.doubao_client import LLMCallResult
 
 
 class FakeBestTrialClient:

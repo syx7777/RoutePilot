@@ -12,3 +12,8 @@ outputs/
 *.parquet
 *.pkl
 *.joblib
+
+*.egg-info/
+
+# 设计文档仅在本地保留，不进入版本库
+docs/routepilot-design.md

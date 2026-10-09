@@ -9,7 +9,7 @@ from typing import Any, TypedDict
 import yaml
 from langgraph.graph import END, START, StateGraph
 
-from comboscope.agents.evaluation_hypothesis_agent import (
+from routepilot.agents.evaluation_hypothesis_agent import (
     generate_experiment_plan,
     generate_feature_hypothesis,
     generate_real_experiment_plan,
@@ -18,21 +18,21 @@ from comboscope.agents.evaluation_hypothesis_agent import (
     write_analysis_report,
     write_yaml,
 )
-from comboscope.agents.report_agent import write_experiment_review
-from comboscope.core.compare import compare_metrics
-from comboscope.core.experiment_plan import apply_experiment_plan, write_review
-from comboscope.core.real_experiment_runner import run_real_experiment, validate_train_command_argparse_choices
-from comboscope.core.experiment_runner import run_experiment
-from comboscope.core.reports import build_final_report_context, write_final_report, write_final_report_context
-from comboscope.core.rollback import rollback_change
-from comboscope.runtime.artifact_adapter import metrics_csv_to_json, read_csv_records, summarize_badcases, write_json
-from comboscope.runtime.artifact_contract import standardize_from_contract, write_artifact_contract
-from comboscope.runtime.agent_run_recorder import AgentRunRecorder
-from comboscope.runtime.llm_client import LLMClient, create_llm_client
-from comboscope.runtime.skill_runner import SkillRunner
-from comboscope.runtime.trace_writer import TraceWriter
-from comboscope.runtime.trial_archive import archive_trial_files
-from comboscope.runtime.yaml_utils import append_yaml_output_contract, safe_load_yaml_mapping, strip_code_fence, yaml_control_char_summary
+from routepilot.agents.report_agent import write_experiment_review
+from routepilot.core.compare import compare_metrics
+from routepilot.core.experiment_plan import apply_experiment_plan, write_review
+from routepilot.core.real_experiment_runner import run_real_experiment, validate_train_command_argparse_choices
+from routepilot.core.experiment_runner import run_experiment
+from routepilot.core.reports import build_final_report_context, write_final_report, write_final_report_context
+from routepilot.core.rollback import rollback_change
+from routepilot.runtime.artifact_adapter import metrics_csv_to_json, read_csv_records, summarize_badcases, write_json
+from routepilot.runtime.artifact_contract import standardize_from_contract, write_artifact_contract
+from routepilot.runtime.agent_run_recorder import AgentRunRecorder
+from routepilot.runtime.llm_client import LLMClient, create_llm_client
+from routepilot.runtime.skill_runner import SkillRunner
+from routepilot.runtime.trace_writer import TraceWriter
+from routepilot.runtime.trial_archive import archive_trial_files
+from routepilot.runtime.yaml_utils import append_yaml_output_contract, safe_load_yaml_mapping, strip_code_fence, yaml_control_char_summary
 
 
 AGENT2_COMMAND_PLACEHOLDERS = {
@@ -58,7 +58,7 @@ AGENT1_PLANNING_SKILLS = [
 AGENT1_CASE_REFERENCE_PATH = "references/package-lgbm-optimization-case.md"
 
 
-class ComboScopeState(TypedDict, total=False):
+class RoutePilotState(TypedDict, total=False):
     experiment_dir: str
     output_dir: str
     ask: str
@@ -100,7 +100,7 @@ class ComboScopeState(TypedDict, total=False):
     source_evaluation_context: dict[str, Any]
 
 
-def _paths(state: ComboScopeState) -> dict[str, Path]:
+def _paths(state: RoutePilotState) -> dict[str, Path]:
     output = Path(state["output_dir"])
     output.mkdir(parents=True, exist_ok=True)
     return {
@@ -146,20 +146,20 @@ def _paths(state: ComboScopeState) -> dict[str, Path]:
     }
 
 
-def _runner(state: ComboScopeState) -> SkillRunner:
+def _runner(state: RoutePilotState) -> SkillRunner:
     repo_root = Path(state.get("repo_root") or Path.cwd())
     return SkillRunner(repo_root / "skills")
 
 
-def _trace(state: ComboScopeState) -> TraceWriter:
+def _trace(state: RoutePilotState) -> TraceWriter:
     return TraceWriter(_paths(state)["trace"])
 
 
-def _recorder(state: ComboScopeState) -> AgentRunRecorder:
+def _recorder(state: RoutePilotState) -> AgentRunRecorder:
     return AgentRunRecorder(_paths(state)["output"])
 
 
-def evaluate_and_diagnose(state: ComboScopeState) -> ComboScopeState:
+def evaluate_and_diagnose(state: RoutePilotState) -> RoutePilotState:
     paths = _paths(state)
     with _recorder(state).step(
         "Agent1",
@@ -175,7 +175,7 @@ def evaluate_and_diagnose(state: ComboScopeState) -> ComboScopeState:
         return _evaluate_generic_and_diagnose(state)
 
 
-def _evaluate_generic_and_diagnose(state: ComboScopeState) -> ComboScopeState:
+def _evaluate_generic_and_diagnose(state: RoutePilotState) -> RoutePilotState:
     paths = _paths(state)
     trace = _trace(state)
     runner = _runner(state)
@@ -330,7 +330,7 @@ def _select_artifact_contract_with_llm(
     )
     contract = _complete_llm_yaml_mapping_with_repair(
         client,
-        "You are ComboScope Agent1. Select artifacts from evidence only. Return YAML and do not invent paths.",
+        "You are RoutePilot Agent1. Select artifacts from evidence only. Return YAML and do not invent paths.",
         prompt,
         agent="Agent1",
         step="SelectArtifacts",
@@ -377,7 +377,7 @@ def _validate_or_repair_artifact_contract(
         )
         repaired = _complete_llm_yaml_mapping(
             client,
-            "You are ComboScope Agent1. Repair only the artifact contract schema and columns. Return YAML.",
+            "You are RoutePilot Agent1. Repair only the artifact contract schema and columns. Return YAML.",
             repair_prompt,
             agent="Agent1",
             step="SelectArtifacts",
@@ -471,7 +471,7 @@ def _generate_problem_context_with_llm(
     )
     context = _complete_llm_yaml_mapping_with_repair(
         client,
-        "You are ComboScope Agent1. Produce a generic forecasting badcase diagnosis and planning context from skill evidence only.",
+        "You are RoutePilot Agent1. Produce a generic forecasting badcase diagnosis and planning context from skill evidence only.",
         prompt,
         agent="Agent1",
         step="DiagnoseBadcases",
@@ -792,7 +792,7 @@ def _complete_llm_yaml_mapping_with_repair(
         )
         repaired = _complete_llm_yaml_mapping(
             client,
-            "You are ComboScope YAML repair. Return only a valid YAML mapping that matches the requested schema.",
+            "You are RoutePilot YAML repair. Return only a valid YAML mapping that matches the requested schema.",
             repair_prompt,
             agent=agent,
             step=step,
@@ -884,7 +884,7 @@ def _agent1_planning_skill_rules(repo_root: Path) -> str:
     return "\n\n---\n\n".join(sections)
 
 
-def generate_experiment_plan_node(state: ComboScopeState) -> ComboScopeState:
+def generate_experiment_plan_node(state: RoutePilotState) -> RoutePilotState:
     paths = _paths(state)
     recorder = _recorder(state)
     with recorder.step(
@@ -946,7 +946,7 @@ def generate_experiment_plan_node(state: ComboScopeState) -> ComboScopeState:
         }
 
 
-def run_experiment_node(state: ComboScopeState) -> ComboScopeState:
+def run_experiment_node(state: RoutePilotState) -> RoutePilotState:
     paths = _paths(state)
     with _recorder(state).step(
         "Agent2",
@@ -998,7 +998,7 @@ def run_experiment_node(state: ComboScopeState) -> ComboScopeState:
         }
 
 
-def review_result_node(state: ComboScopeState) -> ComboScopeState:
+def review_result_node(state: RoutePilotState) -> RoutePilotState:
     paths = _paths(state)
     with _recorder(state).step(
         "Agent2",
@@ -1099,7 +1099,7 @@ def _apply_evaluation_context_consistency_check(
     }
 
 
-def write_final_report_node(state: ComboScopeState) -> ComboScopeState:
+def write_final_report_node(state: RoutePilotState) -> RoutePilotState:
     paths = _paths(state)
     with _recorder(state).step(
         "Agent1",
@@ -1135,7 +1135,7 @@ def write_final_report_node(state: ComboScopeState) -> ComboScopeState:
     return result
 
 
-def _build_agent1_report_context(state: ComboScopeState, paths: dict[str, Path]) -> None:
+def _build_agent1_report_context(state: RoutePilotState, paths: dict[str, Path]) -> None:
     runner = _runner(state)
     runner.build_report_context(
         ask=state["ask"],
@@ -1207,7 +1207,7 @@ def _write_llm_forecast_report(
         sort_keys=False,
     )
     result = client.complete_with_usage(
-        "You are ComboScope Agent1 report writer. Use only provided evidence. Return Markdown, no code fence.",
+        "You are RoutePilot Agent1 report writer. Use only provided evidence. Return Markdown, no code fence.",
         prompt,
         agent="Agent1",
         step="WriteForecastReport",
@@ -1459,7 +1459,7 @@ def _write_llm_final_report(
         sort_keys=False,
     )
     result = client.complete_with_usage(
-        "You are ComboScope final report writer. Use only provided evidence and preserve deterministic decisions.",
+        "You are RoutePilot final report writer. Use only provided evidence and preserve deterministic decisions.",
         prompt,
         agent="Agent1",
         step="WriteFinalReport",
@@ -1553,7 +1553,7 @@ def _record_llm_calls_since(recorder: AgentRunRecorder, client: LLMClient, start
     recorder.record_llm_call(client.last_call)
 
 
-def _build_agent2_execution_plan(plan: dict[str, Any], state: ComboScopeState, client: LLMClient) -> dict[str, Any]:
+def _build_agent2_execution_plan(plan: dict[str, Any], state: RoutePilotState, client: LLMClient) -> dict[str, Any]:
     experiment = Path(state["experiment_dir"])
     paths = _paths(state)
     evidence = _agent2_execution_evidence(state, experiment)
@@ -1631,7 +1631,7 @@ def _build_agent2_execution_plan(plan: dict[str, Any], state: ComboScopeState, c
     )
     parsed = _complete_llm_yaml_mapping_with_repair(
         client,
-        "You are ComboScope Agent2. Return a complete YAML execution plan from evidence only.",
+        "You are RoutePilot Agent2. Return a complete YAML execution plan from evidence only.",
         prompt,
         agent="Agent2",
         step="BuildExecutionPlan",
@@ -1651,7 +1651,7 @@ def _build_agent2_execution_plan(plan: dict[str, Any], state: ComboScopeState, c
     )
 
 
-def _agent2_execution_evidence(state: ComboScopeState, experiment: Path) -> dict[str, Any]:
+def _agent2_execution_evidence(state: RoutePilotState, experiment: Path) -> dict[str, Any]:
     paths = _paths(state)
     scan = _read_json(paths["scan"])
     code = _read_json(paths["code"])
@@ -1697,7 +1697,7 @@ def _validate_or_repair_agent2_execution_plan(
     client: LLMClient,
     experiment: Path,
     plan: dict[str, Any],
-    state: ComboScopeState,
+    state: RoutePilotState,
     original_prompt: str,
     evidence: dict[str, Any],
 ) -> dict[str, Any]:
@@ -1731,7 +1731,7 @@ def _validate_or_repair_agent2_execution_plan(
         )
         repaired = _complete_llm_yaml_mapping(
             client,
-            "You are ComboScope Agent2. Repair only invalid paths, placeholders, and schema fields. Return YAML.",
+            "You are RoutePilot Agent2. Repair only invalid paths, placeholders, and schema fields. Return YAML.",
             repair_prompt,
             agent="Agent2",
             step="BuildExecutionPlan",
@@ -1745,7 +1745,7 @@ def _validated_agent2_execution_plan(
     execution_plan: dict[str, Any],
     experiment: Path,
     plan: dict[str, Any],
-    state: ComboScopeState,
+    state: RoutePilotState,
 ) -> dict[str, Any]:
     for key in ("source_entrypoint", "train_command", "output_contract"):
         if key not in execution_plan:
@@ -1811,7 +1811,7 @@ def _validated_agent2_execution_plan(
     return execution_plan
 
 
-def _source_evaluation_context_for_plan(execution_plan: dict[str, Any], state: ComboScopeState) -> dict[str, Any]:
+def _source_evaluation_context_for_plan(execution_plan: dict[str, Any], state: RoutePilotState) -> dict[str, Any]:
     context = execution_plan.get("source_evaluation_context")
     if not isinstance(context, dict) or not context:
         context = state.get("source_evaluation_context") or _read_json(_paths(state)["source_evaluation_context"])
@@ -1888,19 +1888,19 @@ def _unsupported_agent2_placeholders(value: str) -> set[str]:
 
 
 def build_forecast_evaluation_graph():
-    graph = StateGraph(ComboScopeState)
+    graph = StateGraph(RoutePilotState)
     graph.add_node("EvaluateAndDiagnose", evaluate_and_diagnose)
     graph.add_edge(START, "EvaluateAndDiagnose")
     graph.add_edge("EvaluateAndDiagnose", END)
     return graph.compile()
 
 
-def run_forecast_evaluation(state: ComboScopeState) -> ComboScopeState:
+def run_forecast_evaluation(state: RoutePilotState) -> RoutePilotState:
     return build_forecast_evaluation_graph().invoke(state)
 
 
 def build_graph():
-    graph = StateGraph(ComboScopeState)
+    graph = StateGraph(RoutePilotState)
     graph.add_node("ForecastEvaluationSubgraph", build_forecast_evaluation_graph())
     graph.add_node("GenerateExperimentPlan", generate_experiment_plan_node)
     graph.add_node("RunExperiment", run_experiment_node)
@@ -1918,7 +1918,7 @@ def build_graph():
 def run_once(request: dict[str, Any]) -> dict[str, Any]:
     output_dir = Path(request["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
-    initial: ComboScopeState = {
+    initial: RoutePilotState = {
         "experiment_dir": Path(request["experiment_dir"]).resolve().as_posix(),
         "output_dir": output_dir.resolve().as_posix(),
         "ask": request["ask"],
@@ -1934,7 +1934,7 @@ def run_once(request: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def _refresh_completed_final_report(state: ComboScopeState) -> None:
+def _refresh_completed_final_report(state: RoutePilotState) -> None:
     paths = _paths(state)
     if not paths["final"].exists() or not paths["experiment_review"].exists() or not paths["review"].exists():
         return
