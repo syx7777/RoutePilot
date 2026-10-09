@@ -9,6 +9,8 @@ import yaml
 
 def validate(path: Path) -> list[str]:
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(data, dict):
+        return ["task intent must be a YAML mapping"]
     errors = []
     if data.get("task_type") != "forecast_evaluation":
         errors.append("task_type must be forecast_evaluation")

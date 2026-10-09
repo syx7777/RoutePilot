@@ -7,6 +7,21 @@ from typing import Any
 from common import read_text_sample
 
 
+# 数值 token：支持符号、小数、`.5` / `5.` 写法与科学计数法（如 1e-3），
+# 避免 `[0-9.]+` 把 `1e-3` 截断成 `1`、或把 `1.2.3` 交给 float() 抛未捕获异常。
+_NUMBER = r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?"
+
+
+def _extract_floats(pattern: str, text: str) -> list[float]:
+    values: list[float] = []
+    for raw in re.findall(pattern, text, re.I):
+        try:
+            values.append(float(raw))
+        except ValueError:
+            continue
+    return values
+
+
 def parse_log(log_path: str | Path | None) -> dict[str, Any]:
     if not log_path:
         return {
@@ -23,17 +38,18 @@ def parse_log(log_path: str | Path | None) -> dict[str, Any]:
     path = Path(log_path)
     text = read_text_sample(path, max_chars=80000)
     lines = text.splitlines()
-    errors = [line for line in lines if re.search(r"\berror\b|failed|exception|nan", line, re.I)]
+    # `nan` 必须带词边界，否则 finance / governance 等正常词会被误判为错误。
+    errors = [line for line in lines if re.search(r"\berror\b|failed|exception|\bnan\b", line, re.I)]
     warnings = [line for line in lines if re.search(r"\bwarning\b|warn|missing", line, re.I)]
-    loss_values = [float(v) for v in re.findall(r"loss\s*=\s*([0-9.]+)", text, re.I)]
+    loss_values = _extract_floats(rf"loss\s*=\s*({_NUMBER})", text)
     metric_values = {
         name.lower(): float(value)
-        for name, value in re.findall(r"\b(wape|mape|bias|mae|rmse)\s*=\s*([0-9.]+)", text, re.I)
+        for name, value in re.findall(rf"\b(wape|mape|bias|mae|rmse)\s*=\s*({_NUMBER})", text, re.I)
     }
     row_counts = [int(v) for v in re.findall(r"rows?\s*=\s*(\d+)", text, re.I)]
     if re.search(r"success|completed|finished", text, re.I) and not re.search(r"failed", text, re.I):
         status = "success"
-    elif re.search(r"failed|error|exception|nan", text, re.I):
+    elif re.search(r"failed|error|exception|\bnan\b", text, re.I):
         status = "failed_or_risky"
     else:
         status = "unknown"

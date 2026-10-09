@@ -99,7 +99,8 @@ def _is_ignored(path: Path, root: Path) -> bool:
 
 def _read_head(path: Path, line_count: int = 8, byte_limit: int = 4096) -> str:
     try:
-        raw = path.open("rb").read(byte_limit)
+        with path.open("rb") as handle:
+            raw = handle.read(byte_limit)
     except OSError:
         return ""
     text = raw.decode("utf-8", errors="ignore")

@@ -2798,7 +2798,7 @@ def _argparse_choice_flags(source_text: str) -> dict[str, set[str]]:
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
-        if _call_name(node.func) not in {"add_argument", "parser.add_argument", "argparse.ArgumentParser.add_argument"}:
+        if _call_name(node.func).split(".")[-1] != "add_argument":
             continue
         arg_flags = [
             str(arg.value)
@@ -2920,7 +2920,11 @@ def _add_argument_supports(source_text: str, flag: str, *, require_boolean_optio
 def _read_input_manifest(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"manifest_error": f"input_manifest.json is unreadable or malformed: {exc}"}
+    return value if isinstance(value, dict) else {}
 
 
 def _copy_data_file(source: Path, data_dir: Path) -> Path:
@@ -8421,19 +8425,39 @@ def _rewrite_data_paths(source_text: str, resource_context: dict[str, Any]) -> s
 
 def _insert_trial_header(source_text: str, header: str) -> str:
     lines = source_text.splitlines()
-    insert_at = 0
-    for index, line in enumerate(lines):
-        stripped = line.strip()
+    # header 必须插在模块 docstring 与 `from __future__ import ...` 之后：
+    # 插到 docstring 之前会丢失 __doc__；插到 `from __future__` 之前会让该
+    # 导入不再是文件首部语句，直接触发编译期 SyntaxError。
+    insert_at = _module_docstring_end_index(source_text)
+    for index in range(insert_at, len(lines)):
+        line = lines[index]
         if line.startswith("from __future__ import "):
             insert_at = index + 1
             continue
-        if not stripped or stripped.startswith("#"):
+        if not line.strip() or line.strip().startswith("#"):
             continue
-        if insert_at:
-            break
         break
     lines.insert(insert_at, header.rstrip("\n"))
     return "\n".join(lines) + "\n"
+
+
+def _module_docstring_end_index(source_text: str) -> int:
+    """返回模块 docstring 之后一行的 0-based 下标；没有 docstring 时返回 0。"""
+    try:
+        tree = ast.parse(source_text)
+    except SyntaxError:
+        return 0
+    if not tree.body:
+        return 0
+    first = tree.body[0]
+    if (
+        isinstance(first, ast.Expr)
+        and isinstance(first.value, ast.Constant)
+        and isinstance(first.value.value, str)
+    ):
+        end = getattr(first, "end_lineno", None)
+        return int(end) if end else 0
+    return 0
 
 
 def _insert_output_override_hook(source_text: str) -> str:

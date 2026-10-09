@@ -9,6 +9,30 @@ SCRIPT_DIR = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from mine_badcases import mine_badcases  # noqa: E402
+from calculate_metrics import calculate_metric_values, load_prediction_actual  # noqa: E402
+
+
+class MetricDefinitionTest(unittest.TestCase):
+    def test_metric_denominator_uses_absolute_actuals(self) -> None:
+        rows = [{"actual": 10.0, "prediction": 12.0}, {"actual": -10.0, "prediction": -12.0}]
+
+        metrics = calculate_metric_values(rows)
+
+        # sum(|actual|) = 20，绝对误差合计 = 4 -> wape 0.2；误差方向相互抵消 -> bias 0.0
+        self.assertAlmostEqual(metrics["wape"], 0.2)
+        self.assertAlmostEqual(metrics["bias"], 0.0)
+
+    def test_positional_alignment_rejects_mismatched_row_counts(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            prediction = Path(tmp) / "prediction.csv"
+            actual = Path(tmp) / "actual.csv"
+            prediction.write_text("prediction\n1\n2\n", encoding="utf-8")
+            actual.write_text("actual\n1\n", encoding="utf-8")
+
+            with self.assertRaises(ValueError):
+                load_prediction_actual(prediction, actual)
 
 
 class MineBadcasesTest(unittest.TestCase):

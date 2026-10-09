@@ -67,6 +67,11 @@ def load_prediction_actual(prediction_path: str | Path, actual_path: str | Path)
                 record["prediction"] = pred.get(pred_col)
                 merged.append(record)
     else:
+        if len(actual_rows) != len(pred_rows):
+            raise ValueError(
+                "prediction and actual files share no common key columns and have different "
+                f"row counts ({len(pred_rows)} vs {len(actual_rows)}); cannot align rows positionally"
+            )
         for actual, pred in zip(actual_rows, pred_rows):
             record = {key: value for key, value in actual.items() if key != actual_col}
             for key, value in pred.items():
@@ -93,7 +98,10 @@ def calculate_metric_values(rows: list[dict[str, Any]]) -> dict[str, float | int
 
     errors = [prediction - actual for actual, prediction in valid]
     abs_errors = [abs(error) for error in errors]
-    actual_sum = sum(actual for actual, _ in valid)
+    # WAPE/Bias 的分母必须是 sum(|actual|)：带符号求和会在 actual 含负数或正负
+    # 相互抵消时被放大、变号甚至趋近 0，导致指标失真（与 RoutePilot 框架内
+    # routepilot/metrics.py 及 benchmark/evaluate.py 的口径保持一致）。
+    actual_sum = sum(abs(actual) for actual, _ in valid)
     non_zero = [(actual, prediction) for actual, prediction in valid if actual != 0]
     mape_values = [abs(prediction - actual) / abs(actual) for actual, prediction in non_zero]
     return {
