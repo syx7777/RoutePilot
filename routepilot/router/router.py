@@ -138,6 +138,8 @@ class Router:
         self.ledger = ledger
         self._failures: dict[str, int] = {}
         self.decisions: list[dict[str, Any]] = []
+        # profiler 的诊断动作会写进这里，用于放大瓶颈 step 的延迟权重
+        self.step_latency_multipliers: dict[str, float] = {}
 
     @property
     def mode(self) -> RouterMode:
@@ -193,7 +195,9 @@ class Router:
             score = (
                 gain
                 - lambda_cost * (cost / max_cost)
-                - self.config.mu_latency * (latency / max_latency)
+                - self.config.mu_latency
+                * self.step_latency_multipliers.get(features.step, 1.0)
+                * (latency / max_latency)
             )
             if score > best_score:
                 best_tier, best_score = tier, score
@@ -207,6 +211,26 @@ class Router:
             if observed:
                 return percentile(observed, 0.5)
         return LATENCY_PRIOR.get(tier.name, 2.0)
+
+    def apply_directives(self, directives: list[dict[str, Any]]) -> list[str]:
+        """把 profiler 的诊断动作翻译成路由参数调整，返回可读的应用记录。"""
+        applied: list[str] = []
+        for directive in directives:
+            kind = directive.get("kind")
+            multiplier = float(directive.get("multiplier") or 1.0)
+            if kind == "raise_step_latency_weight":
+                step = str(directive.get("step") or "")
+                if not step:
+                    continue
+                updated = max(self.step_latency_multipliers.get(step, 1.0), multiplier)
+                self.step_latency_multipliers[step] = updated
+                applied.append(f"{step} 延迟权重 → ×{updated:g}")
+            elif kind == "raise_latency_weight_all":
+                for step in STEP_BASE_DIFFICULTY:
+                    updated = max(self.step_latency_multipliers.get(step, 1.0), multiplier)
+                    self.step_latency_multipliers[step] = updated
+                applied.append(f"全部 step 延迟权重 → ×{multiplier:g}")
+        return applied
 
     def observe(self, features: StepFeatures, tier: ModelTier, success: bool) -> None:
         bucket = difficulty_bucket(estimate_difficulty(features))

@@ -26,6 +26,8 @@ class LLMCallResult:
     error: str | None = None
     timeout_seconds: int | float | tuple[int | float, int | float] | None = None
     streaming_used: bool = False
+    # 仅流式调用可测：从发起请求到收到第一个内容 token 的耗时。
+    ttft_seconds: float | None = None
     attempt_count: int = 0
     retry_count: int = 0
     retry_errors: list[str] = field(default_factory=list)
@@ -116,6 +118,7 @@ class LLMClient:
             response = None
             data: dict[str, Any] = {}
             content = ""
+            ttft_seconds: float | None = None
             for attempt_index in range(1, retry_limit + 2):
                 attempt_count = attempt_index
                 try:
@@ -129,9 +132,9 @@ class LLMClient:
                     response = requests.post(request_url, **request_kwargs)
                     response.raise_for_status()
                     if stream and self.api_mode == "responses":
-                        content, data = _content_from_responses_stream_response(response)
+                        content, data, ttft_seconds = _content_from_responses_stream_response(response, started)
                     elif stream:
-                        content, data = _content_from_stream_response(response)
+                        content, data, ttft_seconds = _content_from_stream_response(response, started)
                     elif self.api_mode == "responses":
                         data = response.json()
                         content = _content_from_responses_response(data)
@@ -165,6 +168,7 @@ class LLMClient:
                     error="empty LLM response content",
                     timeout_seconds=request_timeout,
                     streaming_used=stream,
+                    ttft_seconds=ttft_seconds,
                     attempt_count=attempt_count,
                     retry_count=max(0, attempt_count - 1),
                     retry_errors=retry_errors,
@@ -191,6 +195,7 @@ class LLMClient:
                 summary=_summarize_call(system_prompt, user_prompt, content),
                 timeout_seconds=request_timeout,
                 streaming_used=stream,
+                ttft_seconds=ttft_seconds,
                 attempt_count=attempt_count,
                 retry_count=max(0, attempt_count - 1),
                 retry_errors=retry_errors,
@@ -550,8 +555,32 @@ def _content_from_responses_response(data: dict[str, Any]) -> str:
     return "".join(chunks)
 
 
-def _content_from_responses_stream_response(response: Any) -> tuple[str, dict[str, Any]]:
-    chunks: list[str] = []
+class _ChunkBuffer:
+    """收集流式片段，并记录第一个内容片段的到达时刻（用于 TTFT）。"""
+
+    def __init__(self, started: float):
+        self.started = started
+        self.parts: list[str] = []
+        self.first_at: float | None = None
+
+    def add(self, text: str) -> None:
+        if self.first_at is None:
+            self.first_at = time.perf_counter()
+        self.parts.append(text)
+
+    @property
+    def text(self) -> str:
+        return "".join(self.parts)
+
+    @property
+    def ttft(self) -> float | None:
+        return None if self.first_at is None else self.first_at - self.started
+
+
+def _content_from_responses_stream_response(
+    response: Any, started: float
+) -> tuple[str, dict[str, Any], float | None]:
+    chunks = _ChunkBuffer(started)
     final_data: dict[str, Any] = {}
     completed_text: str | None = None
     for raw_line in response.iter_lines(decode_unicode=False):
@@ -577,23 +606,25 @@ def _content_from_responses_stream_response(response: Any) -> tuple[str, dict[st
             continue
         delta = data.get("delta")
         if event_type == "response.output_text.delta" and isinstance(delta, str):
-            chunks.append(delta)
+            chunks.add(delta)
             continue
         if not event_type and isinstance(delta, str):
-            chunks.append(delta)
+            chunks.add(delta)
             continue
-        if not event_type and isinstance(data.get("text"), str) and not chunks:
+        if not event_type and isinstance(data.get("text"), str) and not chunks.parts:
             completed_text = str(data["text"])
-    content = "".join(chunks)
+    content = chunks.text
     if not final_data:
         final_data = {"output_text": content or completed_text or ""}
     elif not content:
         content = completed_text or _content_from_responses_response(final_data)
-    return content, final_data
+    return content, final_data, chunks.ttft
 
 
-def _content_from_stream_response(response: Any) -> tuple[str, dict[str, Any]]:
-    chunks: list[str] = []
+def _content_from_stream_response(
+    response: Any, started: float
+) -> tuple[str, dict[str, Any], float | None]:
+    chunks = _ChunkBuffer(started)
     final_data: dict[str, Any] = {}
     for raw_line in response.iter_lines(decode_unicode=False):
         if not raw_line:
@@ -617,11 +648,11 @@ def _content_from_stream_response(response: Any) -> tuple[str, dict[str, Any]]:
         if text is None and isinstance(message, dict):
             text = message.get("content")
         if text:
-            chunks.append(str(text))
-    content = "".join(chunks)
+            chunks.add(str(text))
+    content = chunks.text
     if not final_data:
         final_data = {"choices": [{"message": {"content": content}}]}
-    return content, final_data
+    return content, final_data, chunks.ttft
 
 
 def _decode_stream_line(raw_line: Any) -> str:

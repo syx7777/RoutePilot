@@ -10,6 +10,7 @@ from routepilot.adapter.manifest import ProjectManifest
 from routepilot.loop.proposer import FileEdit, Proposal, ScriptedProposer
 from routepilot.loop.report import write_report
 from routepilot.loop.trial import run_optimization
+from routepilot.profiler import PROJECT_RUN, Profiler
 
 TRAIN_SOURCE = '''\
 from __future__ import annotations
@@ -228,3 +229,38 @@ def test_report_json_contains_primary_improvement(tmp_path: Path) -> None:
         __import__("json").dumps(outcome.to_dict(), ensure_ascii=False)
     )
     assert payload["primary_improvement"] == pytest.approx(0.06)
+
+
+def test_run_optimization_records_profile_spans(tmp_path: Path) -> None:
+    root = _build_project(tmp_path)
+    manifest = _manifest()
+    profiler = Profiler()
+
+    outcome = run_optimization(
+        _adapter(root, manifest),
+        manifest,
+        goal="降低 WAPE",
+        proposer=ScriptedProposer([_proposal("明显改善", -6)]),
+        profiler=profiler,
+        log=_silent,
+    )
+
+    assert [span.name for span in profiler.spans] == ["baseline_run", "trial_1_run"]
+    assert all(span.category == PROJECT_RUN for span in profiler.spans)
+    assert outcome.profile["attribution"][PROJECT_RUN] > 0
+    assert outcome.profile["findings"]
+
+
+def test_run_optimization_without_profiler_leaves_profile_empty(tmp_path: Path) -> None:
+    root = _build_project(tmp_path)
+    manifest = _manifest()
+
+    outcome = run_optimization(
+        _adapter(root, manifest),
+        manifest,
+        goal="降低 WAPE",
+        proposer=ScriptedProposer([]),
+        log=_silent,
+    )
+
+    assert outcome.profile == {}

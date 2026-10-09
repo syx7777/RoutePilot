@@ -71,8 +71,37 @@ def render_markdown(outcome: OptimizationOutcome) -> str:
     if not outcome.trials:
         lines.append("| - | 无提案 | - | - | - | - | - |")
     lines.extend(_render_routing(outcome.routing))
+    lines.extend(_render_profile(outcome.profile))
     lines.append("")
     return "\n".join(lines)
+
+
+def _render_profile(profile: dict) -> list[str]:
+    if not profile:
+        return []
+    lines = [
+        "",
+        "## 链路性能诊断",
+        "",
+        f"- 埋点总耗时：{profile.get('instrumented_seconds', 0):.2f}s",
+        "",
+        "| 环节 | 耗时(s) | 占比 |",
+        "|---|---|---|",
+    ]
+    total = profile.get("instrumented_seconds") or 1.0
+    for category, seconds in (profile.get("attribution") or {}).items():
+        lines.append(f"| {category} | {seconds:.2f} | {seconds / total:.0%} |")
+    findings = profile.get("findings") or []
+    if findings:
+        lines += ["", "### 瓶颈与回流", "", "| 瓶颈 | 占比 | 严重度 | 说明 |", "|---|---|---|---|"]
+        for finding in findings:
+            lines.append(
+                f"| {finding['bottleneck']} | {finding['share']:.0%} | "
+                f"{finding['severity']} | {finding['detail']} |"
+            )
+    else:
+        lines += ["", "未发现超过阈值的单一瓶颈。"]
+    return lines
 
 
 def _render_routing(routing: dict) -> list[str]:

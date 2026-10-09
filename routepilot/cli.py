@@ -25,6 +25,7 @@ from routepilot.loop import (
     run_optimization,
     write_report,
 )
+from routepilot.profiler import Profiler
 from routepilot.router import Router, RouterConfig, RouterMode, RoutedLLMClient, UsageLedger
 
 
@@ -186,6 +187,7 @@ def _run(args: argparse.Namespace) -> int:
     ledger = None
     router = None
     diagnoser = None
+    profiler = Profiler()
     if args.proposals:
         proposer = ScriptedProposer.from_file(args.proposals)
         print(f"proposer : scripted ({args.proposals})")
@@ -220,6 +222,7 @@ def _run(args: argparse.Namespace) -> int:
             diagnoser=diagnoser,
             ledger=ledger,
             router=router,
+            profiler=profiler,
             max_trials=args.max_trials,
         )
     except RuntimeError as exc:
@@ -244,6 +247,17 @@ def _run(args: argparse.Namespace) -> int:
                 f"  tier {name:6s}: calls={item['calls']} cost=${item['cost_usd']:.6f} "
                 f"tokens={item['tokens']}"
             )
+    profile = outcome.profile
+    if profile:
+        attribution = profile.get("attribution") or {}
+        total = profile.get("instrumented_seconds") or 1.0
+        parts = " ".join(
+            f"{key}={value:.1f}s({value / total:.0%})"
+            for key, value in attribution.items()
+        )
+        print(f"profile  : {parts}")
+        for finding in profile.get("findings") or []:
+            print(f"  bottleneck {finding['bottleneck']}: {finding['share']:.0%}")
     print(f"report   : {markdown_path}")
     print(f"json     : {json_path}")
     return 0

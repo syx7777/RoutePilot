@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import time
+from contextlib import nullcontext
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -13,6 +15,8 @@ from routepilot.adapter.base import ProjectAdapter
 from routepilot.adapter.manifest import ProjectManifest
 from routepilot.loop.proposer import ProposalContext, Proposer, validate_proposal
 from routepilot.metrics import MetricError, compute_metrics, decide
+from routepilot.profiler.diagnosis import diagnose_profile
+from routepilot.profiler.spans import PROJECT_RUN, Profiler
 
 LogFn = Callable[[str], None]
 
@@ -45,6 +49,7 @@ class OptimizationOutcome:
     # keep 是就地生效的，因此必须留档 editable 文件的原始内容，才能事后回滚。
     original_editable_files: dict[str, str] = field(default_factory=dict)
     routing: dict[str, Any] = field(default_factory=dict)
+    profile: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -63,11 +68,10 @@ def run_optimization(
     diagnoser: Callable[[ProposalContext], str] | None = None,
     ledger: Any = None,
     router: Any = None,
+    profiler: Profiler | None = None,
     max_trials: int | None = None,
     log: LogFn = print,
 ) -> OptimizationOutcome:
-    import time
-
     started = time.perf_counter()
     budget = max_trials if max_trials is not None else manifest.budget.max_trials
 
@@ -81,7 +85,8 @@ def run_optimization(
 
     log("[baseline] 运行项目原始配置")
     original_editable_files = _editable_contents(adapter)
-    baseline_run = adapter.run()
+    with _project_span(profiler, "baseline_run"):
+        baseline_run = adapter.run()
     baseline_metrics = _metrics_from_run(adapter, manifest, baseline_run)
     log(f"[baseline] {_format_metrics(baseline_metrics, manifest)}")
 
@@ -131,7 +136,8 @@ def run_optimization(
         trial_started = time.perf_counter()
         try:
             _apply_edits(adapter, proposal)
-            run_result = adapter.run()
+            with _project_span(profiler, f"trial_{trial_index}_run"):
+                run_result = adapter.run()
             candidate_metrics = (
                 _metrics_from_run(adapter, manifest, run_result)
                 if run_result.success
@@ -181,6 +187,7 @@ def run_optimization(
                 guard_violations=list(verdict.get("guard_violations") or []),
             )
         )
+        _apply_profile_feedback(profiler, ledger, router, trial_index, log)
 
     return OptimizationOutcome(
         project=manifest.project.name,
@@ -193,7 +200,28 @@ def run_optimization(
         total_duration_sec=time.perf_counter() - started,
         original_editable_files=original_editable_files,
         routing=ledger.summary() if ledger is not None else {},
+        profile=diagnose_profile(profiler, ledger).to_dict() if profiler is not None else {},
     )
+
+
+def _project_span(profiler: Profiler | None, name: str):
+    return profiler.span(name, PROJECT_RUN) if profiler is not None else nullcontext()
+
+
+def _apply_profile_feedback(
+    profiler: Profiler | None, ledger: Any, router: Any, trial_index: int, log: LogFn
+) -> None:
+    """Profiling → Diagnosis → Optimization：把瓶颈诊断回流向路由参数。"""
+    if profiler is None or router is None:
+        return
+    diagnosis = diagnose_profile(profiler, ledger)
+    for finding in diagnosis.findings:
+        log(
+            f"[trial {trial_index}] 瓶颈: {finding.bottleneck} "
+            f"占比 {finding.share:.0%} — {finding.detail}"
+        )
+    for item in router.apply_directives(diagnosis.directives):
+        log(f"[trial {trial_index}] profiler 回流: {item}")
 
 
 def _metrics_from_run(adapter: ProjectAdapter, manifest: ProjectManifest, run_result: Any):

@@ -2,6 +2,9 @@
 #
 # 每个提案给出被改文件的**完整新内容**；下方两轮会被 rollback，第三轮会被 keep，
 # 用于演示 keep/rollback 决策与最小改善阈值（min_delta=0.005）的作用。
+#
+# 注意：提案是整文件替换，必须带上 model.deterministic / force_row_wise，
+# 否则会退回 LightGBM 的非确定性训练，结果不可复现。
 proposals:
   - summary: 扩充滞后阶数与滚动窗口
     rationale: 覆盖月内周期性（21/28 天）并加入 3 天短窗，提升对近期脉冲的响应。
@@ -16,6 +19,8 @@ proposals:
           learning_rate: 0.05
           num_leaves: 31
           min_child_samples: 20
+          deterministic: true
+          force_row_wise: true
 
         features:
           lags: [1, 2, 3, 7, 14, 21, 28]
@@ -36,6 +41,8 @@ proposals:
           learning_rate: 0.05
           num_leaves: 31
           min_child_samples: 20
+          deterministic: true
+          force_row_wise: true
 
         features:
           lags: [1, 2, 3, 7, 14, 21, 28]
@@ -56,6 +63,8 @@ proposals:
           learning_rate: 0.05
           num_leaves: 31
           min_child_samples: 20
+          deterministic: true
+          force_row_wise: true
 
         features:
           lags: [1, 2, 3, 7, 14, 21, 28]
@@ -77,6 +86,8 @@ proposals:
           learning_rate: 0.03
           num_leaves: 63
           min_child_samples: 10
+          deterministic: true
+          force_row_wise: true
 
         features:
           lags: [1, 2, 3, 7, 14, 21, 28]
