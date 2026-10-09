@@ -8,7 +8,11 @@
     python experiments/router_matrix.py \
         --project ../routepilot-project-a \
         --repeats 3 --trials 4 \
+        --step-difficulty ProposeExperiment=0.4 \
         --out runs/experiment-matrix
+
+给出 --step-difficulty 时，会在四种模式之外额外跑一条 dynamic-calibrated 变体
+（沿用 dynamic 路由，但用指定的难度先验），用于对照内置先验是否需要校准。
 
 注意：keep 会就地修改被接入项目的 editable 文件，因此每次运行前都会把
 editable 文件恢复成实验开始时的快照，保证各次运行从同一基线出发。
@@ -97,19 +101,24 @@ def run_matrix(args: argparse.Namespace) -> int:
     out_root.mkdir(parents=True, exist_ok=True)
 
     records: list[dict] = []
-    for mode in args.modes:
+    specs = _build_specs(args.modes, args.step_difficulty)
+    for spec in specs:
+        mode, label, overrides = spec["mode"], spec["label"], spec["overrides"]
         for repeat in range(1, args.repeats + 1):
             _restore(project, snapshot)
-            out = out_root / f"{mode}-r{repeat}"
+            out = out_root / f"{label}-r{repeat}"
+            command = [
+                sys.executable, "-m", "routepilot.cli", "run",
+                "--manifest", str(manifest_path),
+                "--goal", args.goal,
+                "--router", mode,
+                "--max-trials", str(args.trials),
+                "--output", str(out),
+            ]
+            for item in overrides:
+                command += ["--step-difficulty", item]
             completed = subprocess.run(
-                [
-                    sys.executable, "-m", "routepilot.cli", "run",
-                    "--manifest", str(manifest_path),
-                    "--goal", args.goal,
-                    "--router", mode,
-                    "--max-trials", str(args.trials),
-                    "--output", str(out),
-                ],
+                command,
                 cwd=str(REPO_ROOT),
                 capture_output=True,
                 text=True,
@@ -118,13 +127,13 @@ def run_matrix(args: argparse.Namespace) -> int:
             )
             report_path = out / "run_report.json"
             if completed.returncode != 0 or not report_path.is_file():
-                print(f"[FAIL] {mode}-r{repeat} rc={completed.returncode}")
+                print(f"[FAIL] {label}-r{repeat} rc={completed.returncode}")
                 print(completed.stdout[-500:], completed.stderr[-500:])
                 continue
-            record = _collect(mode, repeat, _load_json(report_path))
+            record = _collect(mode, label, repeat, _load_json(report_path))
             records.append(record)
             print(
-                f"[ok] {mode}-r{repeat} base={record['baseline_wape']:.4f} "
+                f"[ok] {label}-r{repeat} base={record['baseline_wape']:.4f} "
                 f"final={record['final_wape']:.4f} kept={record['kept_trials']} "
                 f"cost=${record['cost_usd']:.6f} p95={record['p95_sec']:.1f}s"
             )
@@ -133,7 +142,8 @@ def run_matrix(args: argparse.Namespace) -> int:
     (out_root / "records.json").write_text(
         json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    summary = _summarize(records, args.modes)
+    labels = [spec["label"] for spec in specs]
+    summary = _summarize(records, labels)
     (out_root / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -142,17 +152,36 @@ def run_matrix(args: argparse.Namespace) -> int:
     return 0
 
 
+def _build_specs(modes, step_difficulty: list[str]) -> list[dict]:
+    """构造待运行清单：每个模式一条，另加一条按 step 覆盖难度校准后的 dynamic。
+
+    被覆盖的只有 dynamic 模式——strong/weak/static 的档位选择与难度先验无关，
+    因此无需为它们重复添加变体。
+    """
+    specs = [{"mode": mode, "label": mode, "overrides": []} for mode in modes]
+    if step_difficulty:
+        specs.append(
+            {
+                "mode": "dynamic",
+                "label": "dynamic-calibrated",
+                "overrides": list(step_difficulty),
+            }
+        )
+    return specs
+
+
 def _load_manifest_mapping(manifest_path: Path) -> dict:
     import yaml
 
     return yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
 
 
-def _collect(mode: str, repeat: int, report: dict) -> dict:
+def _collect(mode: str, label: str, repeat: int, report: dict) -> dict:
     routing = report.get("routing") or {}
     profile = report.get("profile") or {}
     return {
         "mode": mode,
+        "label": label,
         "repeat": repeat,
         "baseline_wape": report["baseline_metrics"]["wape"],
         "final_wape": report["final_metrics"]["wape"],
@@ -169,16 +198,17 @@ def _collect(mode: str, repeat: int, report: dict) -> dict:
     }
 
 
-def _summarize(records: list[dict], modes) -> dict:
+def _summarize(records: list[dict], labels) -> dict:
     summary: dict[str, dict] = {}
-    for mode in modes:
-        rows = [item for item in records if item["mode"] == mode]
+    for label in labels:
+        rows = [item for item in records if item["label"] == label]
         if not rows:
             continue
         finals = [item["final_wape"] for item in rows]
         deltas = [item["baseline_wape"] - item["final_wape"] for item in rows]
         costs = [item["cost_usd"] for item in rows]
-        summary[mode] = {
+        summary[label] = {
+            "mode": rows[0]["mode"],
             "repeats": len(rows),
             "final_wape_mean": statistics.mean(finals),
             "final_wape_stdev": statistics.stdev(finals) if len(finals) > 1 else 0.0,
@@ -205,9 +235,9 @@ def _render(summary: dict, records: list[dict]) -> str:
         "| 模式 | 重复 | final wape | improvement | 成本(USD) | tokens | P95(s) | 采纳数 | 改善次数 |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
-    for mode, item in summary.items():
+    for label, item in summary.items():
         lines.append(
-            f"| {mode} | {item['repeats']} | "
+            f"| {label} | {item['repeats']} | "
             f"{item['final_wape_mean']:.4f}±{item['final_wape_stdev']:.4f} | "
             f"{item['improvement_mean']:.4f}±{item['improvement_stdev']:.4f} | "
             f"{item['cost_mean']:.6f}±{item['cost_stdev']:.6f} | "
@@ -218,8 +248,15 @@ def _render(summary: dict, records: list[dict]) -> str:
         "",
         "> 说明：LLM 提案本身是随机的，单次运行的差异不足以支撑质量结论；",
         "> 重复次数过少时只能比较成本/延迟，不能断言质量优劣。",
-        "",
     ]
+    if any("calibrated" in label for label in summary):
+        lines += [
+            ">",
+            "> dynamic-calibrated 的难度先验由本轮实验自身的运行结果标定，属于",
+            "> calibration-on-train：它只能说明内置先验需要校准，不能作为 dynamic",
+            "> 相对 static 的独立收益证据（需要另留一组未参与标定的数据来评估）。",
+        ]
+    lines.append("")
     return "\n".join(lines)
 
 
@@ -232,6 +269,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--trials", type=int, default=4)
     parser.add_argument("--goal", default=DEFAULT_GOAL)
     parser.add_argument("--out", default="runs/experiment-matrix")
+    parser.add_argument(
+        "--step-difficulty",
+        action="append",
+        default=[],
+        metavar="STEP=VALUE",
+        help="覆盖某 step 的难度先验，可重复，如 ProposeExperiment=0.4；"
+        "给定时额外运行一条 dynamic-calibrated 变体用于对照",
+    )
     return parser
 
 

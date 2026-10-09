@@ -166,3 +166,36 @@ def test_routed_client_records_usage_and_routes_by_step() -> None:
     assert created["deepseek-v4-pro"].calls == ["ProposeExperiment"]
     assert [record.tier for record in ledger.records] == [WEAK, STRONG]
     assert router.failures_for("Diagnose") == 0
+
+
+def test_estimate_difficulty_override_replaces_step_base() -> None:
+    features = StepFeatures(step="ProposeExperiment", prompt_tokens=0)
+    default = estimate_difficulty(features)
+    lowered = estimate_difficulty(features, {"ProposeExperiment": 0.3})
+    assert lowered < default
+    assert difficulty_bucket(lowered) == "easy"
+
+
+def test_dynamic_router_honours_step_difficulty_override() -> None:
+    features = StepFeatures(step="ProposeExperiment", prompt_tokens=0)
+    # 内置先验把 ProposeExperiment 判为难，dynamic 会挑强模型
+    assert _router(RouterMode.DYNAMIC).choose(features).name == STRONG
+    # 校准后（难度下调）dynamic 应改判为弱模型可胜任
+    calibrated = _router(RouterMode.DYNAMIC, step_difficulty={"ProposeExperiment": 0.4})
+    assert calibrated.choose(features).name == WEAK
+
+
+def test_parse_step_difficulty_accepts_repeats_and_rejects_bad_input() -> None:
+    from routepilot.cli import _parse_step_difficulty
+
+    assert _parse_step_difficulty([]) == {}
+    assert _parse_step_difficulty(["ProposeExperiment=0.4", "Diagnose=0.1"]) == {
+        "ProposeExperiment": 0.4,
+        "Diagnose": 0.1,
+    }
+    with pytest.raises(ValueError):
+        _parse_step_difficulty(["ProposeExperiment"])
+    with pytest.raises(ValueError):
+        _parse_step_difficulty(["ProposeExperiment=abc"])
+    with pytest.raises(ValueError):
+        _parse_step_difficulty(["ProposeExperiment=1.5"])

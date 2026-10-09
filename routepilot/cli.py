@@ -67,6 +67,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="strong=全强模型 / weak=全弱模型 / static=固定映射 / dynamic=动态路由",
     )
     run_parser.add_argument(
+        "--step-difficulty",
+        action="append",
+        default=[],
+        metavar="STEP=VALUE",
+        help="覆盖某 step 的难度先验，可重复，如 ProposeExperiment=0.4；仅 dynamic 生效",
+    )
+    run_parser.add_argument(
         "--no-diagnose", action="store_true", help="关闭诊断步骤（仅保留提案步骤）"
     )
 
@@ -192,10 +199,17 @@ def _run(args: argparse.Namespace) -> int:
         proposer = ScriptedProposer.from_file(args.proposals)
         print(f"proposer : scripted ({args.proposals})")
     else:
+        try:
+            step_difficulty = _parse_step_difficulty(args.step_difficulty)
+        except ValueError as exc:
+            print(f"[routepilot] --step-difficulty 参数无效: {exc}")
+            return 2
         ledger = UsageLedger()
         router = Router(
             config=RouterConfig(
-                mode=RouterMode(args.router), budget_usd=manifest.budget.max_usd
+                mode=RouterMode(args.router),
+                budget_usd=manifest.budget.max_usd,
+                step_difficulty=step_difficulty,
             ),
             ledger=ledger,
         )
@@ -210,6 +224,9 @@ def _run(args: argparse.Namespace) -> int:
         diagnoser = None if args.no_diagnose else LlmDiagnoser(routed_client)
         tiers = ", ".join(f"{tier.name}={tier.model}" for tier in router.tiers)
         print(f"proposer : llm (router={args.router}; {tiers})")
+        if step_difficulty:
+            overrides = ", ".join(f"{step}={value:g}" for step, value in step_difficulty.items())
+            print(f"difficulty override: {overrides}")
 
     output_dir = Path(args.output) if args.output else _default_output_dir(manifest)
     print(f"output   : {output_dir}")
@@ -261,6 +278,23 @@ def _run(args: argparse.Namespace) -> int:
     print(f"report   : {markdown_path}")
     print(f"json     : {json_path}")
     return 0
+
+
+def _parse_step_difficulty(items: list[str]) -> dict[str, float]:
+    """把可重复的 `STEP=VALUE` 解析成 {step: difficulty}，用于校准难度先验。"""
+    overrides: dict[str, float] = {}
+    for item in items:
+        step, sep, raw = item.partition("=")
+        if not sep or not step.strip():
+            raise ValueError(f"应为 STEP=VALUE，收到 {item!r}")
+        try:
+            value = float(raw)
+        except ValueError:
+            raise ValueError(f"难度必须是数值，收到 {item!r}") from None
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"难度需在 [0, 1] 区间内，收到 {item!r}")
+        overrides[step.strip()] = value
+    return overrides
 
 
 def _default_output_dir(manifest: ProjectManifest) -> Path:

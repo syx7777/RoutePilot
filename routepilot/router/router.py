@@ -50,9 +50,17 @@ class StepFeatures:
     prior_failures: int = 0
 
 
-def estimate_difficulty(features: StepFeatures) -> float:
-    """难度先验：step 类型 + 上下文规模 + 可改面大小 + 同 step 历史失败次数。"""
+def estimate_difficulty(
+    features: StepFeatures, overrides: dict[str, float] | None = None
+) -> float:
+    """难度先验：step 类型 + 上下文规模 + 可改面大小 + 同 step 历史失败次数。
+
+    overrides 用于按 step 覆盖基础难度：当实测证据表明某个 step 的固有难度
+    先验被高估/低估时，可据此校准，而无需求改全局常量。
+    """
     base = STEP_BASE_DIFFICULTY.get(features.step, DEFAULT_DIFFICULTY)
+    if overrides and features.step in overrides:
+        base = float(overrides[features.step])
     context_term = min(features.prompt_tokens / 6000.0, 1.0) * 0.15
     editable_term = min(features.editable_files / 5.0, 1.0) * 0.10
     failure_term = min(features.prior_failures / 3.0, 1.0) * 0.20
@@ -120,6 +128,8 @@ class RouterConfig:
     mu_latency: float = 0.05
     budget_usd: float | None = None
     expected_completion_tokens: int = 300
+    # 按 step 覆盖难度先验（step 名 → 覆盖值），空表示沿用内置先验
+    step_difficulty: dict[str, float] = field(default_factory=dict)
 
 
 class Router:
@@ -148,6 +158,9 @@ class Router:
     def failures_for(self, step: str) -> int:
         return self._failures.get(step, 0)
 
+    def _difficulty(self, features: StepFeatures) -> float:
+        return estimate_difficulty(features, self.config.step_difficulty)
+
     def choose(self, features: StepFeatures, *, spent_usd: float = 0.0) -> ModelTier:
         if self.mode is RouterMode.STRONG:
             tier = tier_by_name(self.tiers, STRONG)
@@ -162,13 +175,13 @@ class Router:
                 "step": features.step,
                 "mode": self.mode.value,
                 "tier": tier.name,
-                "difficulty": round(estimate_difficulty(features), 4),
+                "difficulty": round(self._difficulty(features), 4),
             }
         )
         return tier
 
     def _choose_dynamic(self, features: StepFeatures, spent_usd: float) -> ModelTier:
-        difficulty = estimate_difficulty(features)
+        difficulty = self._difficulty(features)
         bucket = difficulty_bucket(difficulty)
         lambda_cost = self.config.lambda_cost
         if self.config.budget_usd:
@@ -226,14 +239,14 @@ class Router:
                 self.step_latency_multipliers[step] = updated
                 applied.append(f"{step} 延迟权重 → ×{updated:g}")
             elif kind == "raise_latency_weight_all":
-                for step in STEP_BASE_DIFFICULTY:
+                for step in sorted({*STEP_BASE_DIFFICULTY, *self.config.step_difficulty}):
                     updated = max(self.step_latency_multipliers.get(step, 1.0), multiplier)
                     self.step_latency_multipliers[step] = updated
                 applied.append(f"全部 step 延迟权重 → ×{multiplier:g}")
         return applied
 
     def observe(self, features: StepFeatures, tier: ModelTier, success: bool) -> None:
-        bucket = difficulty_bucket(estimate_difficulty(features))
+        bucket = difficulty_bucket(self._difficulty(features))
         self.posterior.update((features.step, bucket, tier.name), success)
         if not success:
             self._failures[features.step] = self._failures.get(features.step, 0) + 1
