@@ -283,6 +283,37 @@ def test_non_v4_deepseek_model_does_not_inject_thinking(monkeypatch) -> None:
     assert "thinking" not in calls[0]["json"]
 
 
+def test_streaming_call_records_ttft(monkeypatch) -> None:
+    def fake_post(url, headers, json, timeout, stream=False):
+        return FakeStreamResponse()
+
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
+
+    client = create_llm_client(provider="deepseek")
+    result = client.complete_with_usage("system", "hello", agent="A", step="S", stream=True)
+
+    assert result.streaming_used is True
+    assert result.ttft_seconds is not None
+    assert 0 <= result.ttft_seconds <= result.duration_seconds
+
+
+def test_non_streaming_call_has_no_ttft(monkeypatch) -> None:
+    def fake_post(url, headers, json, timeout):
+        return FakeResponse()
+
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
+    monkeypatch.setattr("routepilot.runtime.llm_client.requests.post", fake_post)
+
+    client = create_llm_client(provider="deepseek")
+    result = client.complete_with_usage("system", "hello", agent="A", step="S")
+
+    assert result.streaming_used is False
+    assert result.ttft_seconds is None
+
+
 def test_llm_client_streams_openai_compatible_chunks(monkeypatch) -> None:
     calls = []
 
