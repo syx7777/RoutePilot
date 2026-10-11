@@ -13,11 +13,12 @@ outputs/
 *.pkl
 *.joblib
 
-# 测试 fixture 数据必须入库，否则新克隆下相关测试无法通过
-!tests/fixtures/**/data/
-!tests/fixtures/**/*.csv
-
 *.egg-info/
 
 # 设计文档仅在本地保留，不进入版本库
 docs/routepilot-design.md
+
+# 内部协作文档与测试目录，不进入版本库
+项目落地记录.md
+AGENTS.md
+tests/
