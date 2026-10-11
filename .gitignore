@@ -21,4 +21,5 @@ docs/routepilot-design.md
 # 内部协作文档与测试目录，不进入版本库
 项目落地记录.md
 AGENTS.md
+program.md
 tests/
