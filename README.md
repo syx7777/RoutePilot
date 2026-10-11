@@ -141,12 +141,6 @@ DOUBAO_MODEL=你的 endpoint id
     --ask "自动尝试特征优化并给出最终效果" --max-trials 3 --output runs/
   ```
 
-## ✅ 跑测试
-
-```bash
-uv run python -m pytest
-```
-
 ## 📄 License
 
 本项目基于 [MIT License](LICENSE) 开源。
