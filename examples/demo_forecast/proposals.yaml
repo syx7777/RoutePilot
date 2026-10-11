@@ -1,0 +1,20 @@
+# 离线候选提案：给 routepilot run --proposals 用，全程不调用大模型。
+# 每个 files 的值是该文件的完整新内容（整文件替换）。
+proposals:
+  - summary: 加入 x2*x3 交互特征
+    rationale: 目标里含 x2*x3 的乘积项，线性模型只有原始列拟合不了，补上乘积特征就能明显降误差。
+    files:
+      configs/base.yaml: |
+        features:
+          add_interactions: true
+          interactions: [x2, x3]
+          drop_columns: []
+
+  - summary: 在交互特征基础上再去掉 x1
+    rationale: 想验证删掉有用特征会不会变差，预期触发 rollback。
+    files:
+      configs/base.yaml: |
+        features:
+          add_interactions: true
+          interactions: [x2, x3]
+          drop_columns: [x1]

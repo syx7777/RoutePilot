@@ -1,0 +1,39 @@
+# Demo 的接入配置。root 是相对本文件所在目录，也就是 examples/demo_forecast/。
+project:
+  name: demo-forecast
+  root: .
+  entrypoint: src/train.py
+
+run:
+  command: [python, src/train.py, --config, configs/base.yaml]
+  cwd: .
+  timeout_sec: 300
+
+artifacts:
+  prediction: outputs/prediction.csv
+  actual: data/actual.csv
+  columns:
+    prediction: yhat
+    actual: y
+    date: ds
+
+metrics:
+  primary:
+    name: wape
+    direction: minimize
+    min_delta: 0.01
+  guards:
+    - name: bias
+      max_regression: 0.05
+
+editable:
+  - configs/*.yaml
+
+protected:
+  - data/**
+  - outputs/**
+  - src/train.py
+
+budget:
+  max_trials: 3
+  max_usd: 1.0
